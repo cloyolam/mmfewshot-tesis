@@ -27,9 +27,17 @@ VOC_SPLIT = dict(
                         'chair', 'cow', 'diningtable', 'dog', 'horse',
                         'person', 'pottedplant', 'train', 'tvmonitor', 'boat',
                         'cat', 'motorbike', 'sheep', 'sofa'),
+    # CoAE split
+    ALL_CLASSES_SPLIT4=('bicycle', 'bird', 'boat','bottle', 'bus', 'car', 'chair',
+                        'diningtable', 'dog', 'horse', 'motorbike', 'person',
+                        'pottedplant', 'sofa', 'train', 'tvmonitor',
+                        'aeroplane', 'cat', 'cow', 'sheep'),
+
     NOVEL_CLASSES_SPLIT1=('bird', 'bus', 'cow', 'motorbike', 'sofa'),
     NOVEL_CLASSES_SPLIT2=('aeroplane', 'bottle', 'cow', 'horse', 'sofa'),
     NOVEL_CLASSES_SPLIT3=('boat', 'cat', 'motorbike', 'sheep', 'sofa'),
+    NOVEL_CLASSES_SPLIT4=('aeroplane', 'cat', 'cow', 'sheep'),
+
     BASE_CLASSES_SPLIT1=('aeroplane', 'bicycle', 'boat', 'bottle', 'car',
                          'cat', 'chair', 'diningtable', 'dog', 'horse',
                          'person', 'pottedplant', 'sheep', 'train',
@@ -39,7 +47,10 @@ VOC_SPLIT = dict(
                          'pottedplant', 'sheep', 'train', 'tvmonitor'),
     BASE_CLASSES_SPLIT3=('aeroplane', 'bicycle', 'bird', 'bottle', 'bus',
                          'car', 'chair', 'cow', 'diningtable', 'dog', 'horse',
-                         'person', 'pottedplant', 'train', 'tvmonitor'))
+                         'person', 'pottedplant', 'train', 'tvmonitor'),
+    BASE_CLASSES_SPLIT4=('bicycle', 'bird', 'boat','bottle', 'bus', 'car', 'chair',
+                         'diningtable', 'dog', 'horse', 'motorbike', 'person',
+                         'pottedplant', 'sofa', 'train', 'tvmonitor'))
 
 
 @DATASETS.register_module()
