@@ -41,7 +41,8 @@ class TransformerRPNHead(RPNHead):
                      type='AggregationLayer',
                      aggregator_cfgs=[
                          dict(
-                             type='DepthWiseCorrelationAggregator',
+                             # type='DepthWiseCorrelationAggregator',
+                             type='CrossAttentionAggregator',
                              in_channels=1024,
                              with_fc=False)
                      ]),
@@ -120,7 +121,8 @@ class TransformerRPNHead(RPNHead):
         # [pos * num_support_shots,
         #  neg * num_support_shots * (num_support_ways - 1 )] * batch size
 
-        # get the average features:
+        '''
+        # get the average features (applying GAP):
         # [pos_avg, neg_avg * (num_support_ways - 1 )] * batch size
         avg_support_feats = [
             support_roi_feats[i * self.num_support_shots:(i + 1) *
@@ -129,6 +131,17 @@ class TransformerRPNHead(RPNHead):
             for i in range(
                 support_roi_feats.size(0) // self.num_support_shots)
         ]
+        '''
+
+        # get the average features (without applying GAP):
+        # [pos_avg, neg_avg * (num_support_ways - 1 )] * batch size
+        avg_support_feats = [
+            support_roi_feats[i * self.num_support_shots:(i + 1) *
+                              self.num_support_shots].mean([0], keepdim=True)
+            for i in range(
+                support_roi_feats.size(0) // self.num_support_shots)
+        ]
+
         # Concat all positive pair features
         pos_pair_feats = [
             self.aggregation_layer(

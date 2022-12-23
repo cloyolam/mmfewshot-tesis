@@ -2,10 +2,10 @@
 import torch
 from mmcv import ConfigDict
 
-from mmfewshot.detection.models.dense_heads import AttentionRPNHead
+from mmfewshot.detection.models.dense_heads import TransformerRPNHead
 
 
-def test_attention_rpn_head():
+def test_transformer_rpn_head():
     # Tests attention_rpn loss when truth is empty and non-empty.
     s = 256
     img_metas = [{
@@ -37,7 +37,7 @@ def test_attention_rpn_head():
             type='AggregationLayer',
             aggregator_cfgs=[
                 dict(
-                    type='DepthWiseCorrelationAggregator',
+                    type='CrossAttentionAggregator',
                     in_channels=64,
                     with_fc=False)
             ]),
@@ -69,7 +69,7 @@ def test_attention_rpn_head():
         nms=dict(type='nms', iou_threshold=0.7),
         min_bbox_size=0)
 
-    self = AttentionRPNHead(**config)
+    self = TransformerRPNHead(**config)
     gt_bboxes = [
         torch.Tensor([[23.6667, 23.8757, 238.6326, 151.8874]]),
     ]
@@ -102,10 +102,10 @@ def test_attention_rpn_head():
     assert len(proposal_list) == 2
 
     # Test simple test
-    proposal_list = self.simple_test(query_feats, torch.rand(1, 64, 1, 1),
+    proposal_list = self.simple_test(query_feats, torch.rand(1, 64, 20, 20),
                                      img_metas)
     assert proposal_list[0].size(0) == 100
 
 
 if __name__ == "__main__":
-    test_attention_rpn_head()
+    test_transformer_rpn_head()
