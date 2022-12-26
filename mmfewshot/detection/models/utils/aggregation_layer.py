@@ -233,33 +233,45 @@ class CrossAttentionAggregator(BaseModule):
     """Cross-Attention Transformer aggregator. Based on https://arxiv.org/abs/2104.14984.
 
     Args:
-        in_channels (int): Number of input features channels. Default: None.
-        out_channels (int): Number of output features channels. Default: None.
+        in_channels (int): Number of input features channels.
+        out_channels (int): Number of output features channels.
+            Default: None.  # TODO: delete?
+        num_layers (int): Number of CAT layers to use (N = 4 in the paper).
+        num_heads (int): Number of heads to use in each CAT layer (M = 8 in the
+            paper).
+        dropout_ratio (float): Dropout ratio.
         with_fc (bool): Use fully connected layer for aggregated features.
             If set True, `in_channels` and `out_channels` are required.
-            Default: False.
+            Default: False.  # TODO: delete?
         init_cfg (ConfigDict | None): Initialization config dict.
             Default: None.
 
-        TODO: add a parameter to choose between using positional embedding or
-    not, etc.
     """
-
     def __init__(self,
-                 in_channels: Optional[int] = None,
-                 out_channels: Optional[int] = None,
-                 with_fc: bool = False,
+                 in_channels: int,
+                 # out_channels: Optional[int] = None,
+                 num_layers: int,
+                 num_heads: int,
+                 # dropout_ratio: float = 0.,  # TODO: apply dropout to both target and query?
+                 # with_fc: bool = False,
                  init_cfg: Optional[ConfigDict] = None) -> None:
         super().__init__(init_cfg=init_cfg)
-        '''
-        self.with_fc = with_fc
+        assert in_channels is not None, \
+            "CrossAttentionAggregator require config of 'in_channels'."
+        self.in_channels = in_channels
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        # self.dropout_layer = nn.Dropout(p=dropout_ratio)
+        """
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.with_fc = with_fc
         if with_fc:
+            assert out_channels is not None, 'out_channels is expected.'
             self.fc = nn.Linear(in_channels, out_channels)
             self.norm = nn.BatchNorm1d(out_channels)
             self.relu = nn.ReLU(inplace=True)
-        '''
+        """
 
     def forward(self, query_feat: Tensor, support_feat: Tensor) -> Tensor:
         """Calculate aggregated features of query and support.
@@ -267,7 +279,7 @@ class CrossAttentionAggregator(BaseModule):
         Args:
             query_feat (Tensor): Input query features with shape (N, C, H, W).
             support_feat (Tensor): Input support features with shape
-                (N, C, H, W).
+                (1, C, H, W).
 
         Returns:
             Tensor: When `with_fc` is True, the aggregate feature is with
@@ -279,16 +291,9 @@ class CrossAttentionAggregator(BaseModule):
 
         assert query_feat.size(1) == support_feat.size(1), \
             'mismatch channel number between query and support features.'
-
-        '''
-        feat = query_feat.mul(support_feat)
-        if self.with_fc:
-            assert feat.size(2) == 1 and feat.size(3) == 1, \
-                'fc layer requires the features with shape (N, C, 1, 1)'
-            feat = self.fc(feat.squeeze(3).squeeze(2))
-            feat = self.norm(feat)
-            feat = self.relu(feat)
-        '''
-        feat = query_feat  # delete this
-
-        return feat
+        x_query = query_feat  # TODO: add Dropout here?
+        x_support = support_feat
+        for _ in range(self.num_layers):
+            x_query, x_support = transformer_block(self.num_heads, x_query, x_support)
+        # TODO: x_query goes to RPN, but x_support should be used in RoI matching?
+        return x_query
