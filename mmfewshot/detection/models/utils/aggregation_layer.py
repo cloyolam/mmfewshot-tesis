@@ -8,6 +8,7 @@ from mmcv.runner import BaseModule
 from mmcv.utils import ConfigDict
 from mmdet.models.builder import MODELS
 from torch import Tensor
+from .transformers import TransformerBlock
 
 # AGGREGATORS are used for aggregate features from different data
 # pipelines in meta-learning methods, such as attention rpn.
@@ -261,6 +262,7 @@ class CrossAttentionAggregator(BaseModule):
         self.in_channels = in_channels
         self.num_layers = num_layers
         self.num_heads = num_heads
+        self.transformer_block = TransformerBlock(num_heads=8)
         # self.dropout_layer = nn.Dropout(p=dropout_ratio)
         """
         self.in_channels = in_channels
@@ -286,6 +288,7 @@ class CrossAttentionAggregator(BaseModule):
                 shape (N, C), otherwise, its shape is (N, C, H, W).
         """
         print("ENTERING CrossAttentionAggregator:")
+        print(f"num_layers = {self.num_layers}, num_heads = {self.num_heads}")
         print(f"query_feat.size() = {query_feat.size()}")
         print(f"support_feat.size() = {support_feat.size()}")
 
@@ -293,7 +296,13 @@ class CrossAttentionAggregator(BaseModule):
             'mismatch channel number between query and support features.'
         x_query = query_feat  # TODO: add Dropout here?
         x_support = support_feat
+        print("Applying TransformerBlock...")
+        x_query, x_support = self.transformer_block(x_query, x_support)
+        print(f"query_feat.size() = {query_feat.size()}")
+        print(f"support_feat.size() = {support_feat.size()}")
+        '''
         for _ in range(self.num_layers):
             x_query, x_support = transformer_block(self.num_heads, x_query, x_support)
         # TODO: x_query goes to RPN, but x_support should be used in RoI matching?
+        '''
         return x_query

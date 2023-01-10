@@ -39,7 +39,9 @@ def test_transformer_rpn_head():
                 dict(
                     type='CrossAttentionAggregator',
                     in_channels=64,
-                    with_fc=False)
+                    # with_fc=False,
+                    num_layers=4,
+                    num_heads=8)
             ]),
         train_cfg=dict(
             assigner=dict(
@@ -75,6 +77,7 @@ def test_transformer_rpn_head():
     ]
     query_feats = [torch.rand(1, 64, s // 8, s // 8)]
     support_feats = [torch.rand(4, 64, 20, 20)]
+    print("First call to forward_train...")
     losses, proposal_list = self.forward_train(
         query_feats,
         support_feats,
@@ -88,6 +91,7 @@ def test_transformer_rpn_head():
     assert sum(losses['loss_rpn_bbox']).item() > 0
     assert len(proposal_list) == 2
 
+    print("Second call to forward_train...")
     losses, proposal_list = self.forward_train(
         query_feats,
         support_feats,
@@ -102,6 +106,7 @@ def test_transformer_rpn_head():
     assert len(proposal_list) == 2
 
     # Test simple test
+    print("Simple test...")
     proposal_list = self.simple_test(query_feats, torch.rand(1, 64, 20, 20),
                                      img_metas)
     assert proposal_list[0].size(0) == 100
