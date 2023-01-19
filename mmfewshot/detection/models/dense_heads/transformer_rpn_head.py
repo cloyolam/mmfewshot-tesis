@@ -114,12 +114,17 @@ class TransformerRPNHead(RPNHead):
                 - losses: (dict[str, Tensor]): A dictionary of loss components.
                 - proposal_list (list[Tensor]): Proposals of each image.
         """
-        query_feat = query_feats[0]
-        support_rois = bbox2roi([bboxes for bboxes in support_gt_bboxes])
-        support_roi_feats = self.extract_roi_feat(support_feats, support_rois)
+        query_feat = query_feats[0]  # (N, C, H_q, W_q)
+        support_rois = bbox2roi([bboxes for bboxes in support_gt_bboxes])  # (N * num_support_ways * num_support_shots, 5)
+        support_roi_feats = self.extract_roi_feat(support_feats, support_rois)  # (N * num_support_ways * num_support_shots, C, roi_out_size, roi_out_size)
         # support features are placed in follow order:
         # [pos * num_support_shots,
         #  neg * num_support_shots * (num_support_ways - 1 )] * batch size
+
+        print("ENTERING forward_train...")
+        print(f"query_feat.size() = {query_feat.size()}")
+        print(f"support_rois.size() = {support_rois.size()}")
+        print(f"support_roi_feats.size() = {support_roi_feats.size()}")
 
         '''
         # get the average features (applying GAP):
@@ -143,13 +148,19 @@ class TransformerRPNHead(RPNHead):
         ]
 
         # Concat all positive pair features
+        # (N, C, H_q, W_q)
+        print("Aggregation for positive pairs...")
         pos_pair_feats = [
             self.aggregation_layer(
                 query_feat=query_feat[i].unsqueeze(0),
                 support_feat=avg_support_feats[i * self.num_support_ways])[0]
             for i in range(query_feat.size(0))
         ]
+        print(f"pos_pair_feats[0].size() = {pos_pair_feats[0].size()}")
+
         # Concat all negative pair features
+        # (N * (num_support_ways - 1), C, H_q, W_q)
+        print("Aggregation for negative pairs...")
         neg_pair_feats = [
             self.aggregation_layer(
                 query_feat=query_feat[i].unsqueeze(0),
@@ -158,6 +169,7 @@ class TransformerRPNHead(RPNHead):
             for i in range(query_feat.size(0))
             for j in range(self.num_support_ways - 1)
         ]
+        print(f"neg_pair_feats[0].size() = {neg_pair_feats[0].size()}")
 
         batch_size = len(query_img_metas)
         # input features for losses: [pos_pair_feats, neg_pair_feats]

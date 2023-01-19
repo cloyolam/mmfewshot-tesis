@@ -8,7 +8,7 @@ from mmcv.runner import BaseModule
 from mmcv.utils import ConfigDict
 from mmdet.models.builder import MODELS
 from torch import Tensor
-from .transformers import TransformerBlock
+from .transformers import CrossAttentionTransformer
 
 # AGGREGATORS are used for aggregate features from different data
 # pipelines in meta-learning methods, such as attention rpn.
@@ -253,6 +253,7 @@ class CrossAttentionAggregator(BaseModule):
                  # out_channels: Optional[int] = None,
                  num_layers: int,
                  num_heads: int,
+                 embed_size: int,
                  # dropout_ratio: float = 0.,  # TODO: apply dropout to both target and query?
                  # with_fc: bool = False,
                  init_cfg: Optional[ConfigDict] = None) -> None:
@@ -262,7 +263,10 @@ class CrossAttentionAggregator(BaseModule):
         self.in_channels = in_channels
         self.num_layers = num_layers
         self.num_heads = num_heads
-        self.transformer_block = TransformerBlock(num_heads=8)
+        self.embed_size = embed_size
+        self.cat_block = CrossAttentionTransformer(num_layers=self.num_layers,
+                                                   num_heads=self.num_heads,
+                                                   embed_size=self.embed_size)
         # self.dropout_layer = nn.Dropout(p=dropout_ratio)
         """
         self.in_channels = in_channels
@@ -275,17 +279,18 @@ class CrossAttentionAggregator(BaseModule):
             self.relu = nn.ReLU(inplace=True)
         """
 
+    # TODO: x_query goes to RPN, but x_support should be used in RoI matching?
     def forward(self, query_feat: Tensor, support_feat: Tensor) -> Tensor:
         """Calculate aggregated features of query and support.
 
         Args:
-            query_feat (Tensor): Input query features with shape (N, C, H, W).
+            query_feat (Tensor): Input query features with shape (N, C, H_q, W_q).
             support_feat (Tensor): Input support features with shape
-                (1, C, H, W).
+                (N, C, H_s, W_s).
 
         Returns:
             Tensor: When `with_fc` is True, the aggregate feature is with
-                shape (N, C), otherwise, its shape is (N, C, H, W).
+                shape (N, C), otherwise, its shape is (N, C, H_q, W_q).
         """
         print("ENTERING CrossAttentionAggregator:")
         print(f"num_layers = {self.num_layers}, num_heads = {self.num_heads}")
@@ -294,15 +299,11 @@ class CrossAttentionAggregator(BaseModule):
 
         assert query_feat.size(1) == support_feat.size(1), \
             'mismatch channel number between query and support features.'
-        x_query = query_feat  # TODO: add Dropout here?
+        x_query = query_feat
         x_support = support_feat
-        print("Applying TransformerBlock...")
-        x_query, x_support = self.transformer_block(x_query, x_support)
+        print("Applying CrossAttentionTransformer...")
+        x_query, x_support = self.cat_block(x_query, x_support)
         print(f"query_feat.size() = {query_feat.size()}")
         print(f"support_feat.size() = {support_feat.size()}")
-        '''
-        for _ in range(self.num_layers):
-            x_query, x_support = transformer_block(self.num_heads, x_query, x_support)
-        # TODO: x_query goes to RPN, but x_support should be used in RoI matching?
-        '''
+
         return x_query

@@ -41,7 +41,8 @@ def test_transformer_rpn_head():
                     in_channels=64,
                     # with_fc=False,
                     num_layers=4,
-                    num_heads=8)
+                    num_heads=8,
+                    embed_size=256)
             ]),
         train_cfg=dict(
             assigner=dict(
@@ -75,8 +76,12 @@ def test_transformer_rpn_head():
     gt_bboxes = [
         torch.Tensor([[23.6667, 23.8757, 238.6326, 151.8874]]),
     ]
-    query_feats = [torch.rand(1, 64, s // 8, s // 8)]
-    support_feats = [torch.rand(4, 64, 20, 20)]
+    query_feats = [torch.rand(1, 64, s // 8, s // 8)]  # (N, C, H_q, W_q)
+    support_feats = [torch.rand(4, 64, 20, 20)]  # (N * num_support_ways * num_support_shots, C, H_s, W_s)
+
+    print(f"Original query features shape: {query_feats[0].size()}")
+    print(f"Original support features shape: {support_feats[0].size()}")
+
     print("First call to forward_train...")
     losses, proposal_list = self.forward_train(
         query_feats,
