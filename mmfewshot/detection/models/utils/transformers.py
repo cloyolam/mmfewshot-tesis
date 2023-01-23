@@ -6,17 +6,17 @@ class MultiHeadAttention(nn.Module):
     """Multi-head attention. Based on https://arxiv.org/abs/1706.03762.
 
     Args:
-        in_channels (int): Number of input features channels.
+        in_channels (int): Number of input features channels.  TODO: DELETE
         num_heads (int): Number of heads used in Multi-head attention.
         embed_size (int): dimension for the transformer embeddings.
 
     """
     def __init__(self,
-                 in_channels: int,
+                 # in_channels: int,
                  num_heads: int,
                  embed_size: int):
         super().__init__()
-        self.in_channels = in_channels
+        # self.in_channels = in_channels
         self.num_heads = num_heads
         self.embed_size = embed_size
         self.W_q = nn.Linear(in_features=self.embed_size, out_features=self.embed_size)
@@ -55,23 +55,23 @@ class TransformerBlock(nn.Module):
     """Transformer block. Based on https://arxiv.org/abs/1706.03762.
 
     Args:
-        in_channels (int): Number of input features channels.
+        in_channels (int): Number of input features channels.  TODO: DELETE
         num_heads (int): Number of heads used in Multi-head attention.
         embed_size (int): dimension for the transformer embeddings.
         dropout_prob (float): Dropout probability.
 
     """
     def __init__(self,
-                 in_channels: int,
+                 # in_channels: int,
                  num_heads: int,
                  embed_size: int,
                  dropout_prob: float):
         super().__init__()
-        self.in_channels = in_channels
+        # self.in_channels = in_channels
         self.num_heads = num_heads
         self.embed_size = embed_size
         self.dropout_prob = dropout_prob
-        self.attention_layer = MultiHeadAttention(in_channels=self.in_channels,
+        self.attention_layer = MultiHeadAttention(# in_channels=self.in_channels,
                                                   num_heads=self.num_heads,
                                                   embed_size=self.embed_size)
         self.feed_forward = nn.Sequential(
@@ -109,23 +109,23 @@ class CrossAttentionTransformer(nn.Module):
     """A single CAT layer. Based on https://arxiv.org/abs/2104.14984.
 
     Args:
-        in_channels (int): Number of input features channels.
+        in_channels (int): Number of input features channels.  # TODO: DELETE
         num_heads (int): Number of heads used in each CAT layer for Multi-head attention.
         embed_size (int): dimension for the hidden embeddings.
         dropout_prob (float): Dropout probability.
 
     """
     def __init__(self,
-                 in_channels: int,
+                 # in_channels: int,
                  num_heads: int,
                  embed_size: int,
                  dropout_prob: float):
         super().__init__()
-        self.in_channels = in_channels
+        # self.in_channels = in_channels
         self.num_heads = num_heads
         self.embed_size = embed_size
         self.dropout_prob = dropout_prob
-        self.transformer_block = TransformerBlock(in_channels=self.in_channels,
+        self.transformer_block = TransformerBlock(# in_channels=self.in_channels,
                                                   num_heads=self.num_heads,
                                                   embed_size=self.embed_size,
                                                   dropout_prob=self.dropout_prob)
@@ -184,7 +184,7 @@ class CrossAttentionTransformerBlock(nn.Module):
 
         self.layers = nn.ModuleList(
             [
-                CrossAttentionTransformer(in_channels=self.in_channels,
+                CrossAttentionTransformer(# in_channels=self.in_channels,
                                           num_heads=self.num_heads,
                                           embed_size= self.embed_size,
                                           dropout_prob=self.dropout_prob,
