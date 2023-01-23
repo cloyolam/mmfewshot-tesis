@@ -40,10 +40,11 @@ def test_transformer_rpn_head():
                 dict(
                     type='CrossAttentionAggregator',
                     in_channels=64,
-                    # with_fc=False,
+                    #with_fc=False,
                     num_layers=4,
                     num_heads=8,
-                    embed_size=256)
+                    embed_size=256,
+                    dropout_prob=0.2)
             ]),
         train_cfg=dict(
             assigner=dict(

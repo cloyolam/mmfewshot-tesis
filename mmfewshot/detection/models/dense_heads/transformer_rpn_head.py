@@ -44,7 +44,8 @@ class TransformerRPNHead(RPNHead):
                              # type='DepthWiseCorrelationAggregator',
                              type='CrossAttentionAggregator',
                              in_channels=1024,
-                             with_fc=False)
+                             #with_fc=False
+                             )
                      ]),
                  roi_extractor: Dict = dict(
                      type='SingleRoIExtractor',

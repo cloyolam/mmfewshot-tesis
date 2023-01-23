@@ -240,10 +240,8 @@ class CrossAttentionAggregator(BaseModule):
         num_layers (int): Number of CAT layers to use (N = 4 in the paper).
         num_heads (int): Number of heads to use in each CAT layer (M = 8 in the
             paper).
-        dropout_ratio (float): Dropout ratio.
-        with_fc (bool): Use fully connected layer for aggregated features.
-            If set True, `in_channels` and `out_channels` are required.
-            Default: False.  # TODO: delete?
+        embed_size (int): Transformer sequence dimension.
+        dropout_prob (float): Dropout ratio.
         init_cfg (ConfigDict | None): Initialization config dict.
             Default: None.
 
@@ -254,8 +252,8 @@ class CrossAttentionAggregator(BaseModule):
                  num_layers: int,
                  num_heads: int,
                  embed_size: int,
-                 # dropout_ratio: float = 0.,  # TODO: apply dropout to both target and query?
-                 # with_fc: bool = False,
+                 dropout_prob: float = 0.,
+                 #with_fc: bool = False,
                  init_cfg: Optional[ConfigDict] = None) -> None:
         super().__init__(init_cfg=init_cfg)
         assert in_channels is not None, \
@@ -264,21 +262,12 @@ class CrossAttentionAggregator(BaseModule):
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.embed_size = embed_size
+        self.dropout_prob = dropout_prob
         self.cat_block = CrossAttentionTransformerBlock(in_channels=self.in_channels,
                                                         num_layers=self.num_layers,
                                                         num_heads=self.num_heads,
-                                                        embed_size=self.embed_size)
-        # self.dropout_layer = nn.Dropout(p=dropout_ratio)
-        """
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.with_fc = with_fc
-        if with_fc:
-            assert out_channels is not None, 'out_channels is expected.'
-            self.fc = nn.Linear(in_channels, out_channels)
-            self.norm = nn.BatchNorm1d(out_channels)
-            self.relu = nn.ReLU(inplace=True)
-        """
+                                                        embed_size=self.embed_size,
+                                                        dropout_prob=self.dropout_prob)
 
     # TODO: x_query goes to RPN, but x_support should be used in RoI matching?
     def forward(self, query_feat: Tensor, support_feat: Tensor) -> Tensor:
