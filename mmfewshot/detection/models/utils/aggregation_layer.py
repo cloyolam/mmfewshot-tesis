@@ -282,19 +282,21 @@ class CrossAttentionAggregator(BaseModule):
             Tensor: When `with_fc` is True, the aggregate feature is with
                 shape (N, C), otherwise, its shape is (N, C, H_q, W_q).
         """
+        '''
         print("ENTERING CrossAttentionAggregator:")
         print(f"num_layers = {self.num_layers}, num_heads = {self.num_heads}")
         print(f"query_feat.size() = {query_feat.size()}")
         print(f"support_feat.size() = {support_feat.size()}")
-
+        '''
         assert query_feat.size(1) == support_feat.size(1), \
             'mismatch channel number between query and support features.'
         x_query = query_feat
         x_support = support_feat
-        print("Applying CrossAttentionTransformer...")
-        x_query, x_support = self.cat_block(x_query, x_support)
+        # print("Applying CrossAttentionTransformer...")
+        x_query, _ = self.cat_block(x_query, x_support)
+        '''
         print("  Sizes after CAT Block...")
         print(f"    x_query.size() = {x_query.size()}")
         print(f"    x_support.size() = {x_support.size()}")
-
+        '''
         return x_query

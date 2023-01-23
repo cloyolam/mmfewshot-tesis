@@ -122,12 +122,12 @@ class TransformerRPNHead(RPNHead):
         # [pos * num_support_shots,
         #  neg * num_support_shots * (num_support_ways - 1 )] * batch size
 
+        '''
         print("ENTERING forward_train...")
         print(f"query_feat.size() = {query_feat.size()}")
         print(f"support_rois.size() = {support_rois.size()}")
         print(f"support_roi_feats.size() = {support_roi_feats.size()}")
 
-        '''
         # get the average features (applying GAP):
         # [pos_avg, neg_avg * (num_support_ways - 1 )] * batch size
         avg_support_feats = [
@@ -150,18 +150,18 @@ class TransformerRPNHead(RPNHead):
 
         # Concat all positive pair features
         # (N, C, H_q, W_q)
-        print("Aggregation for positive pairs...")
+        # print("Aggregation for positive pairs...")
         pos_pair_feats = [
             self.aggregation_layer(
                 query_feat=query_feat[i].unsqueeze(0),
                 support_feat=avg_support_feats[i * self.num_support_ways])[0]
             for i in range(query_feat.size(0))
         ]
-        print(f"pos_pair_feats[0].size() = {pos_pair_feats[0].size()}")
+        # print(f"pos_pair_feats[0].size() = {pos_pair_feats[0].size()}")
 
         # Concat all negative pair features
         # (N * (num_support_ways - 1), C, H_q, W_q)
-        print("Aggregation for negative pairs...")
+        # print("Aggregation for negative pairs...")
         neg_pair_feats = [
             self.aggregation_layer(
                 query_feat=query_feat[i].unsqueeze(0),
@@ -170,7 +170,7 @@ class TransformerRPNHead(RPNHead):
             for i in range(query_feat.size(0))
             for j in range(self.num_support_ways - 1)
         ]
-        print(f"neg_pair_feats[0].size() = {neg_pair_feats[0].size()}")
+        # print(f"neg_pair_feats[0].size() = {neg_pair_feats[0].size()}")
 
         batch_size = len(query_img_metas)
         # input features for losses: [pos_pair_feats, neg_pair_feats]
