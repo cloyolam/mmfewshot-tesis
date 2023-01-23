@@ -14,7 +14,8 @@ def test_transformer_rpn_head():
         'pad_shape': (s, s, 3)
     }]
     config = ConfigDict(
-        in_channels=64,
+        # in_channels=64,
+        in_channels=256,  # Needs to match emded_size from CrossAttentionAggregator
         feat_channels=64,
         num_support_ways=2,
         num_support_shots=2,

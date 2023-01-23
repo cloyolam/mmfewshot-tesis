@@ -95,8 +95,8 @@ class CrossAttentionTransformerBlock(nn.Module):
         print(f"    x_query.size() = {x_query.size()}")
         print(f"    x_support.size() = {x_support.size()}")
         print("  Sizes after reshape:")
-        print(f"    x_query.size() = {flatten(x_query).size()}")
-        print(f"    x_support.size() = {x_support.size()}")
+        print(f"    x_query.size() = {flatten(x_query, start_dim=-2, end_dim=-1).size()}")
+        print(f"    x_query.size() = {flatten(x_query, start_dim=-2, end_dim=-1).size()}")
 
         # TODO: apply dropout to both feature maps
         for layer in self.layers:

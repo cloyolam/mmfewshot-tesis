@@ -8,7 +8,7 @@ from mmcv.runner import BaseModule
 from mmcv.utils import ConfigDict
 from mmdet.models.builder import MODELS
 from torch import Tensor
-from .transformers import CrossAttentionTransformer
+from .transformers import CrossAttentionTransformerBlock
 
 # AGGREGATORS are used for aggregate features from different data
 # pipelines in meta-learning methods, such as attention rpn.
@@ -264,9 +264,10 @@ class CrossAttentionAggregator(BaseModule):
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.embed_size = embed_size
-        self.cat_block = CrossAttentionTransformer(num_layers=self.num_layers,
-                                                   num_heads=self.num_heads,
-                                                   embed_size=self.embed_size)
+        self.cat_block = CrossAttentionTransformerBlock(in_channels=self.in_channels,
+                                                        num_layers=self.num_layers,
+                                                        num_heads=self.num_heads,
+                                                        embed_size=self.embed_size)
         # self.dropout_layer = nn.Dropout(p=dropout_ratio)
         """
         self.in_channels = in_channels
@@ -303,7 +304,8 @@ class CrossAttentionAggregator(BaseModule):
         x_support = support_feat
         print("Applying CrossAttentionTransformer...")
         x_query, x_support = self.cat_block(x_query, x_support)
-        print(f"query_feat.size() = {query_feat.size()}")
-        print(f"support_feat.size() = {support_feat.size()}")
+        print("  Sizes after CAT Block...")
+        print(f"    x_query.size() = {x_query.size()}")
+        print(f"    x_support.size() = {x_support.size()}")
 
         return x_query
