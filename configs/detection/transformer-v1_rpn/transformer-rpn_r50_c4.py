@@ -30,7 +30,7 @@ model = dict(
                     num_heads=8,
                     embed_size=256,
                     dropout_prob=0.2)
-            ]),
+            ])),
     roi_head=dict(
         type='MultiRelationRoIHead',
         num_support_ways=num_support_ways,
