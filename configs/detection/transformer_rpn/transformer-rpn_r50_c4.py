@@ -29,6 +29,8 @@ model = dict(
                     num_layers=4,
                     num_heads=8,
                     embed_size=256,
+                    forward_expansion=1,
+                    pos_encoding=False,
                     dropout_prob=0.2)
             ])),
     roi_head=dict(

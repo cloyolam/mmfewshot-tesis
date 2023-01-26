@@ -44,6 +44,8 @@ def test_transformer_rpn_head():
                     num_layers=4,
                     num_heads=8,
                     embed_size=256,
+                    forward_expansion=1,
+                    pos_encoding=False,
                     dropout_prob=0.2)
             ]),
         train_cfg=dict(
