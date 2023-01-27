@@ -243,12 +243,15 @@ class CrossAttentionTransformerBlock(nn.Module):
         self.pos_encoding = pos_encoding
         self.dropout_prob = dropout_prob
         self.query_compression = nn.Sequential(
-            # TODO: reduce output channels here? Add ReLU?
             nn.Conv2d(self.in_channels, self.in_channels, 3, padding='same'),
+            nn.BatchNorm2d(self.in_channels),
+            nn.ReLu(),
             nn.Conv2d(self.in_channels, self.embed_size, 1, padding='same'),
         )
         self.support_compression = nn.Sequential(
             nn.Conv2d(self.in_channels, self.in_channels, 3, padding='same'),
+            nn.BatchNorm2d(self.in_channels),
+            nn.ReLu(),
             nn.Conv2d(self.in_channels, self.embed_size, 1, padding='same'),
         )
         self.dropout = nn.Dropout(dropout_prob)
