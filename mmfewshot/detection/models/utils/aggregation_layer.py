@@ -106,8 +106,8 @@ class DepthWiseCorrelationAggregator(BaseModule):
 
         '''
         print("ENTERING DepthWiseCorrelation Aggregator")
-        print(f"query_feat.size() = {query_feat.size()}")
-        print(f"support_feat.size() = {support_feat.size()}")
+        print(f"  query_feat.size() = {query_feat.size()}")
+        print(f"  support_feat.size() = {support_feat.size()}")
         '''
         assert query_feat.size(1) == support_feat.size(1), \
             'mismatch channel number between query and support features.'
@@ -122,6 +122,7 @@ class DepthWiseCorrelationAggregator(BaseModule):
             feat = self.fc(feat.squeeze(3).squeeze(2))
             feat = self.norm(feat)
             feat = self.relu(feat)
+        # print(f"  feat.size() = {feat.size()}")
         return feat
 
 
@@ -309,3 +310,30 @@ class CrossAttentionAggregator(BaseModule):
         print(f"    x_support.size() = {x_support.size()}")
         '''
         return x_query
+
+
+@AGGREGATORS.register_module()
+class DummyAggregator(BaseModule):
+    """Dummy aggregator.
+
+    Args:
+        init_cfg (ConfigDict | None): Initialization config dict.
+            Default: None.
+    """
+
+    def __init__(self, init_cfg: Optional[ConfigDict] = None) -> None:
+        super().__init__(init_cfg=init_cfg)
+
+    def forward(self, query_feat: Tensor, support_feat: Tensor) -> Tensor:
+        """It just returns the input query feature map (no aggregation at all).
+
+        Args:
+            query_feat (Tensor): Input query features with shape (N, C, H, W).
+            support_feat (Tensor): Input support features with shape
+                (N, C, H, W).
+
+        Returns:
+            Tensor: The same as the input query fetures.
+        """
+
+        return query_feat
