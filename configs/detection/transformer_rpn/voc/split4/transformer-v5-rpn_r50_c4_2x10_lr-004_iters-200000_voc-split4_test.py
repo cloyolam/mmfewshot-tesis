@@ -50,4 +50,8 @@ model = dict(
         num_support_ways=num_support_ways,
         num_support_shots=num_support_shots,
     ),
+    test_cfg=dict(
+        rcnn=dict(
+            score_thr=0.3)  # default = 0.05
+    )
 )
