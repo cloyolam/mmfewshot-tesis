@@ -11,10 +11,10 @@ data = dict(
     train=dict(
         num_support_ways=num_support_ways,
         num_support_shots=num_support_shots,
-        dataset=dict(classes='ALL_CLASSES_SPLIT4')),
-    val=dict(classes='ALL_CLASSES_SPLIT4'),
-    test=dict(classes='ALL_CLASSES_SPLIT4'),
-    model_init=dict(classes='ALL_CLASSES_SPLIT4'))
+        dataset=dict(classes='BASE_CLASSES_SPLIT4')),
+    val=dict(classes='BASE_CLASSES_SPLIT4'),
+    test=dict(classes='BASE_CLASSES_SPLIT4'),
+    model_init=dict(classes='BASE_CLASSES_SPLIT4'))
 optimizer = dict(
     lr=0.004,
     # lr = 0.0015,  # 3 * lr_default / 8
@@ -25,12 +25,11 @@ lr_config = dict(warmup_iters=500, warmup_ratio=0.1, step=[16000])
 # runner = dict(max_iters=48000)
 # runner = dict(max_iters=60000)
 runner = dict(max_iters=200000)
-# evaluation = dict(interval=6000)
-evaluation = dict(interval=6000,
-                  class_splits=['BASE_CLASSES_SPLIT4', 'NOVEL_CLASSES_SPLIT4'])
+evaluation = dict(interval=6000)
 checkpoint_config = dict(interval=6000)
 
 model = dict(
+    backbone=dict(frozen_stages=3),
     rpn_head=dict(
         num_support_ways=num_support_ways,
         num_support_shots=num_support_shots,
@@ -50,8 +49,4 @@ model = dict(
         num_support_ways=num_support_ways,
         num_support_shots=num_support_shots,
     ),
-    test_cfg=dict(
-        rcnn=dict(
-            score_thr=0.05)  # default = 0.05
-    )
 )
