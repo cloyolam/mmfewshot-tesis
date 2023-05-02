@@ -122,7 +122,7 @@ def _demo_mm_inputs(input_shape=(1, 3, 300, 300),
         # 'detection/attention_rpn/voc/split1/attention-rpn_r50_c4_voc-split1_base-training.py',  # noqa
         # 'detection/attention_rpn/voc/split1/attention-rpn_r50_c4_voc-split1_1shot-fine-tuning.py'  # noqa
     ])
-def test_attention_rpn_detector_forward(cfg_file):
+def test_transformer_rpn_detector_forward(cfg_file):
     if not torch.cuda.is_available():
         import pytest
         pytest.skip('test requires GPU and torch+cuda')
@@ -200,7 +200,7 @@ def test_attention_rpn_detector_forward(cfg_file):
         # 'detection/attention_rpn/voc/split1/attention-rpn_r50_c4_voc-split1_base-training.py',  # noqa
         # 'detection/attention_rpn/voc/split1/attention-rpn_r50_c4_voc-split1_1shot-fine-tuning.py'  # noqa
     ])
-def test_attention_rpn_detector_fp16_forward(cfg_file):
+def test_transformer_rpn_detector_fp16_forward(cfg_file):
     if not torch.cuda.is_available():
         import pytest
         pytest.skip('test requires GPU and torch+cuda')
@@ -280,4 +280,4 @@ if __name__ == "__main__":
 
     cfg_file = args.config
     print(f"CONFIG FILE = {cfg_file}")
-    test_attention_rpn_detector_forward(cfg_file)
+    test_transformer_rpn_detector_forward(cfg_file)

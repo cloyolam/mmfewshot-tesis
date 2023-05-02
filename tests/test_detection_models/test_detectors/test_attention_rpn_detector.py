@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 
+import argparse
 import copy
 from os.path import dirname, exists, join
 
@@ -268,3 +269,13 @@ def test_attention_rpn_detector_fp16_forward(cfg_file):
             mode='test')
         assert len(results) == 1
         assert len(results[0]) == 5
+
+
+if __name__ == "__main__":
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument("-c", "--config", help="path to config file")
+    args = argParser.parse_args()
+
+    cfg_file = args.config
+    print(f"CONFIG FILE = {cfg_file}")
+    test_attention_rpn_detector_forward(cfg_file)

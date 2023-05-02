@@ -9,8 +9,13 @@ model = dict(
     backbone=dict(frozen_stages=2),
     neck=dict(
         type='CATNeck',
-        in_channels=256,
-        out_channels=512,
+        in_channels=1024,
+        num_layers=1,
+        num_heads=8,
+        embed_size=1024,
+        forward_expansion=2,
+        pos_encoding=False,
+        dropout_prob=0.1,
         ),
     rpn_head=dict(
         type='AttentionRPNHead',
@@ -26,10 +31,7 @@ model = dict(
         aggregation_layer=dict(
             type='AggregationLayer',
             aggregator_cfgs=[
-                dict(
-                    type='DepthWiseCorrelationAggregator',
-                    in_channels=1024,
-                    with_fc=False)
+                dict(type='DummyAggregator')
             ])),
     roi_head=dict(
         type='MultiRelationRoIHead',

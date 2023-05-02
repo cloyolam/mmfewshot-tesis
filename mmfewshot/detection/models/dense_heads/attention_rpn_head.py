@@ -103,6 +103,10 @@ class AttentionRPNHead(RPNHead):
                 - losses: (dict[str, Tensor]): A dictionary of loss components.
                 - proposal_list (list[Tensor]): Proposals of each image.
         """
+        print("Entering forward_train in AttentionRPNHead...")
+        print(f"  query_feats[0].size() = {query_feats[0].size()}")
+        print(f"  support_feats[0].size() = {support_feats[0].size()}")
+
         query_feat = query_feats[0]
         support_rois = bbox2roi([bboxes for bboxes in support_gt_bboxes])
         support_roi_feats = self.extract_roi_feat(support_feats, support_rois)
