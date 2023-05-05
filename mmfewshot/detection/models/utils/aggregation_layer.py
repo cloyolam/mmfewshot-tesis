@@ -104,11 +104,9 @@ class DepthWiseCorrelationAggregator(BaseModule):
                 shape (N, C), otherwise, its shape is (N, C, H, W).
         """
 
-        '''
-        print("ENTERING DepthWiseCorrelation Aggregator")
+        print("Entering DepthWiseCorrelation Aggregator...")
         print(f"  query_feat.size() = {query_feat.size()}")
         print(f"  support_feat.size() = {support_feat.size()}")
-        '''
         assert query_feat.size(1) == support_feat.size(1), \
             'mismatch channel number between query and support features.'
 
@@ -122,7 +120,7 @@ class DepthWiseCorrelationAggregator(BaseModule):
             feat = self.fc(feat.squeeze(3).squeeze(2))
             feat = self.norm(feat)
             feat = self.relu(feat)
-        # print(f"  feat.size() = {feat.size()}")
+        print(f"  feat.size() = {feat.size()}")
         return feat
 
 

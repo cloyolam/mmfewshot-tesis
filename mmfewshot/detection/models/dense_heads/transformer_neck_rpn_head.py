@@ -14,8 +14,8 @@ from mmfewshot.detection.models.utils import build_aggregator
 
 
 @HEADS.register_module()
-class AttentionRPNHead(RPNHead):
-    """RPN head for `Attention RPN <https://arxiv.org/abs/1908.01998>`_.
+class TransformerNeckRPNHead(RPNHead):
+    """RPN head for `Cross Attention Transformer <https://arxiv.org/abs/2104.14984>`_.
 
     Args:
         num_support_ways (int): Number of sampled classes (pos + neg).
@@ -30,10 +30,7 @@ class AttentionRPNHead(RPNHead):
                  aggregation_layer: Dict = dict(
                      type='AggregationLayer',
                      aggregator_cfgs=[
-                         dict(
-                             type='DepthWiseCorrelationAggregator',
-                             in_channels=1024,
-                             with_fc=False)
+                         dict(type='DummyAggregator',)
                      ]),
                  roi_extractor: Dict = dict(
                      type='SingleRoIExtractor',
@@ -45,6 +42,11 @@ class AttentionRPNHead(RPNHead):
         super().__init__(**kwargs)
         self.num_support_ways = num_support_ways
         self.num_support_shots = num_support_shots
+        '''
+        print("Entering constructor in TransformerRPNHead...")
+        print(f"  num_support_ways = {self.num_support_ways}")
+        print(f"  num_support_shots = {self.num_support_shots}")
+        '''
         assert roi_extractor is not None, \
             'missing config of roi_extractor.'
         assert aggregation_layer is not None, \
@@ -103,21 +105,24 @@ class AttentionRPNHead(RPNHead):
                 - losses: (dict[str, Tensor]): A dictionary of loss components.
                 - proposal_list (list[Tensor]): Proposals of each image.
         """
-        '''
-        print("Entering forward_train in AttentionRPNHead...")
-        print(f"  query_feats[0].size() = {query_feats[0].size()}")
-        print(f"  support_feats[0].size() = {support_feats[0].size()}")
-        '''
+        print("Entering forward_train in TransformerNeckRPNHead...")
+        print(f"  self.num_support_ways = {self.num_support_ways}")      # 2
+        print(f"  self.num_support_shots = {self.num_support_shots}")    # 2
+        print(f"  query_feats[0].size() = {query_feats[0].size()}")      # (N, C, H_q, W_q)
+        print(f"  support_feats[0].size() = {support_feats[0].size()}")  # (N * num_support_ways * num_support_shots, C, H_s, W_s)
 
-        query_feat = query_feats[0]
+        query_feat = query_feats[0]  # (N, C, H_q, W_q)
         support_rois = bbox2roi([bboxes for bboxes in support_gt_bboxes])
-        support_roi_feats = self.extract_roi_feat(support_feats, support_rois)
+        support_roi_feats = self.extract_roi_feat(support_feats, support_rois)  # (N * num_support_ways * num_support_shots, C, 14, 14)
+        print(f"  support_roi_feats.size() = {support_roi_feats.size()}")
         # support features are placed in follow order:
         # [pos * num_support_shots,
         #  neg * num_support_shots * (num_support_ways - 1 )] * batch size
 
         # get the average features:
         # [pos_avg, neg_avg * (num_support_ways - 1 )] * batch size
+        # If num_support_ways = 2 -> [(N, C, 1, 1), (N, C, 1, 1)] (it averages
+        # all shots in each support class and applies GAP)
         avg_support_feats = [
             support_roi_feats[i * self.num_support_shots:(i + 1) *
                               self.num_support_shots].mean([0, 2, 3],
@@ -125,13 +130,19 @@ class AttentionRPNHead(RPNHead):
             for i in range(
                 support_roi_feats.size(0) // self.num_support_shots)
         ]
-        # Concat all positive pair features
+        print(f"  len(avg_support_feats) = {len(avg_support_feats)}")
+        # print(f"  avg_support_feats.size() = {avg_support_feats.size()}")
+        for ix in range(len(avg_support_feats)):
+            print(f"  support_class: {ix}, avg_support_feats[{ix}].size() = {avg_support_feats[ix].size()}")
+        # Concat all positive pair features, [(1, C, H_q, W_q),..., (1, C, H_q, W_q)], a list of N elements
         pos_pair_feats = [
             self.aggregation_layer(
                 query_feat=query_feat[i].unsqueeze(0),
                 support_feat=avg_support_feats[i * self.num_support_ways])[0]
             for i in range(query_feat.size(0))
         ]
+        print(f"  len(pos_pair_feats) = {len(pos_pair_feats)}")
+        print(f"  pos_pair_feats[0] = {pos_pair_feats[0].size()}")
         # Concat all negative pair features
         neg_pair_feats = [
             self.aggregation_layer(
@@ -141,6 +152,8 @@ class AttentionRPNHead(RPNHead):
             for i in range(query_feat.size(0))
             for j in range(self.num_support_ways - 1)
         ]
+        print(f"  len(neg_pair_feats) = {len(neg_pair_feats)}")
+        print(f"  neg_pair_feats[0] = {neg_pair_feats[0].size()}")
 
         batch_size = len(query_img_metas)
         # input features for losses: [pos_pair_feats, neg_pair_feats]

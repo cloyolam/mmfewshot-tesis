@@ -18,7 +18,7 @@ model = dict(
         dropout_prob=0.1,
         ),
     rpn_head=dict(
-        type='AttentionRPNHead',
+        type='TransformerNeckRPNHead',
         in_channels=1024,
         feat_channels=1024,
         num_support_ways=num_support_ways,

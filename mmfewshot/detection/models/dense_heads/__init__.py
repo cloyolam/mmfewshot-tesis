@@ -2,5 +2,7 @@
 from .attention_rpn_head import AttentionRPNHead
 from .two_branch_rpn_head import TwoBranchRPNHead
 from .transformer_rpn_head import TransformerRPNHead
+from .transformer_neck_rpn_head import TransformerNeckRPNHead
 
-__all__ = ['AttentionRPNHead', 'TwoBranchRPNHead', 'TransformerRPNHead']
+__all__ = ['AttentionRPNHead', 'TwoBranchRPNHead', 'TransformerRPNHead',
+           'TransformerNeckRPNHead']
