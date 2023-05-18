@@ -39,7 +39,7 @@ class CATNeck(nn.Module):
                  forward_expansion: int,
                  pos_encoding: bool,
                  dropout_prob: float = 0.,):
-        print("Building CATNeck block...")
+        # print("Building CATNeck block...")
         super(CATNeck, self).__init__()
         assert in_channels is not None, \
             "CatNeck require config of 'in_channels'."
@@ -76,11 +76,11 @@ class CATNeck(nn.Module):
         print(f"  query_feat.size() = {query_feat.size()}")
         print(f"  support_feat.size() = {support_feat.size()}")
         '''
+        # print("Entering forward in CATNeck...")
         assert query_feat.size(1) == support_feat.size(1), \
             'mismatch channel number between query and support features.'
         x_query = query_feat
         x_support = support_feat
-        # print("Applying CrossAttentionTransformer...")
-        # x_query, x_support = self.cat_block(x_query, x_support)
+        x_query, x_support = self.cat_block(x_query, x_support)
 
         return x_query, x_support

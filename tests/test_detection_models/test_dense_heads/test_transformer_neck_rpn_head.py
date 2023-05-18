@@ -77,7 +77,7 @@ def test_transformer_neck_rpn_head():
     # query_feats = [torch.rand(1, 64, s // 8, s // 8)]  # (N, C, H_q, W_q)
     # support_feats = [torch.rand(4, 64, 20, 20)]  # (N * num_support_ways * num_support_shots, C, H_s, W_s)
     batch_size = 2
-    query_feats = [torch.rand(batch_size, 1024, s // 8, s // 8)]  # (N, C, H_q, W_q)
+    query_feats = [torch.rand(batch_size * 4, 1024, s // 16, s // 16)]  # (N * num_support_ways * num_support_shots, C, H_q, W_q)
     support_feats = [torch.rand(batch_size * 4, 1024, 20, 20)]  # (N * num_support_ways * num_support_shots, C, H_s, W_s)
 
     print(f"Original query features shape: {query_feats[0].size()}")
@@ -101,8 +101,8 @@ def test_transformer_neck_rpn_head():
     losses, proposal_list = self.forward_train(
         query_feats,
         support_feats,
-        query_img_metas=img_metas,
-        query_gt_bboxes=[torch.empty((0, 4))],
+        query_img_metas=img_metas * batch_size,
+        query_gt_bboxes=[torch.empty((0, 4))] * batch_size,
         support_img_metas=img_metas * 4 * batch_size,
         support_gt_bboxes=gt_bboxes * 4 * batch_size,
         proposal_cfg=proposal_cfg)

@@ -162,6 +162,8 @@ def test_transformer_rpn_detector_forward(cfg_file):
         ],
     )
     model.train()
+    print("Model intitialized!")
+    print("Testing model forward...")
     losses = model(
         query_data=query_data, support_data=support_data, mode='train')
     assert 'loss_rpn_cls' in losses

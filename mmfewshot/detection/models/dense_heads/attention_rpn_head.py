@@ -132,6 +132,12 @@ class AttentionRPNHead(RPNHead):
                 support_feat=avg_support_feats[i * self.num_support_ways])[0]
             for i in range(query_feat.size(0))
         ]
+        '''
+        print(f"  len(pos_pair_feats) = {len(pos_pair_feats)}")
+        for ix in range(len(pos_pair_feats)):
+            print(f"  pos_pair_feats[{ix}] = {pos_pair_feats[ix].size()}")
+        '''
+
         # Concat all negative pair features
         neg_pair_feats = [
             self.aggregation_layer(
@@ -141,6 +147,12 @@ class AttentionRPNHead(RPNHead):
             for i in range(query_feat.size(0))
             for j in range(self.num_support_ways - 1)
         ]
+        '''
+        print(f"  len(neg_pair_feats) = {len(neg_pair_feats)}")
+        for ix in range(len(neg_pair_feats)):
+            print(f"  neg_pair_feats[{ix}] = {neg_pair_feats[ix].size()}")
+        '''
+
 
         batch_size = len(query_img_metas)
         # input features for losses: [pos_pair_feats, neg_pair_feats]

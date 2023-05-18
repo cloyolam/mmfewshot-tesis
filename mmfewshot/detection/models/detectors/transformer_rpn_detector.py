@@ -273,12 +273,14 @@ class TransformerRPNDetector(QuerySupportDetector):
         Returns:
             dict[str, Tensor]: a dictionary of loss components
         """
-        print("Entering forward_train in TransformerRPNDetector ...")
+        # print("Entering forward_train in TransformerRPNDetector ...")
         query_img = query_data['img']
         support_img = support_data['img']
+        '''
         print("Shapes before backbone...")
         print(f"  query_img.shape = {query_img.shape}")
         print(f"  support_img.shape = {support_img.shape}")
+        '''
 
         query_feats = self.extract_query_feat(query_img)
         support_feats = self.extract_support_feat(support_img)
@@ -287,19 +289,24 @@ class TransformerRPNDetector(QuerySupportDetector):
         print(f"  type(support_feats) = {type(support_feats)}")
         print(f"  len(query_feats) = {len(query_feats)}")
         print(f"  len(support_feats) = {len(support_feats)}")
-        '''
+
         print("Shapes after backbone:")
         print(f"  query_feats[0].shape = {query_feats[0].shape}")
         print(f"  support_feats[0].shape = {support_feats[0].shape}")
+        '''
 
         assert len(query_feats) == len(support_feats) == 1, \
             'len(query_feats) or len(support_feats) is different from 1'
+
+        # Apply block of Cross Attention Transformer
         if self.neck is not None:
             query_feats, support_feats = self.neck(query_feats[0], support_feats[0])
 
+        '''
         print("Shapes after CAT neck:")
         print(f"  query_feats.shape = {query_feats.shape}")
         print(f"  support_feats.shape = {support_feats.shape}")
+        '''
 
         query_feats = (query_feats,)
         support_feats = (support_feats,)
