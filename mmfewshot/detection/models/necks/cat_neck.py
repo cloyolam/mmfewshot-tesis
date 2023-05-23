@@ -81,6 +81,7 @@ class CATNeck(nn.Module):
             'mismatch channel number between query and support features.'
         x_query = query_feat
         x_support = support_feat
+        # print("Calling CrossAttentionTransformerBlock...")
         x_query, x_support = self.cat_block(x_query, x_support)
 
         return x_query, x_support

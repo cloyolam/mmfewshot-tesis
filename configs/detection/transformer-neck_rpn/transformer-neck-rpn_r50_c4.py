@@ -14,7 +14,7 @@ model = dict(
         num_heads=8,
         embed_size=1024,
         forward_expansion=2,
-        pos_encoding=False,
+        pos_encoding=True,
         dropout_prob=0.1,
         ),
     rpn_head=dict(
@@ -28,6 +28,7 @@ model = dict(
             roi_layer=dict(type='RoIAlign', output_size=14, sampling_ratio=0),
             out_channels=1024,
             featmap_strides=[16]),
+        # TODO: delete aggregation layer, not used by TransformerNeckRPNHead
         aggregation_layer=dict(
             type='AggregationLayer',
             aggregator_cfgs=[

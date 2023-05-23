@@ -87,13 +87,39 @@ class MultiHeadAttention(nn.Module):
             Tensor: Multi-head attention with shape (N, H * W, embed_size).
 
         """
+
+        '''
+        print("         Entering forward in MultiHeadAttention...")
+        print(f"         queries.size() = {queries.size()}")
+        print(f"         keys.size() = {keys.size()}")
+        print(f"         values.size() = {values.size()}")
+        '''
+
         queries = self.W_q(queries)
         keys = self.W_k(keys)
         values = self.W_v(values)
+
+        '''
+        print("           Sizes after transformation:")
+        print(f"         queries.size() = {queries.size()}")
+        print(f"         keys.size() = {keys.size()}")
+        print(f"         values.size() = {values.size()}")
+        '''
+
         # Split embeddings into the different heads
         queries = torch.reshape(queries, (queries.size()[0], queries.size()[1], self.num_heads, -1))
         keys = torch.reshape(keys, (keys.size()[0], keys.size()[1], self.num_heads, -1))
         values = torch.reshape(values, (values.size()[0], values.size()[1], self.num_heads, -1))
+
+        '''
+        print(f"         Splitting heads...")
+        print(f"         queries.size() = {queries.size()}")
+        print(f"         keys.size() = {keys.size()}")
+        print(f"         values.size() = {values.size()}")
+
+        print(f"         Computing einsum...")
+        '''
+
         # Compute attention just like in the paper
         attention = torch.einsum("nqhd,nkhd->nhqk", [queries, keys])  # (N, num_heads, queries_len, keys_len)
         attention = torch.softmax(attention / (self.embed_size ** 0.5), dim=3)
@@ -147,9 +173,12 @@ class TransformerBlock(nn.Module):
         Returns:
             Tensor: Attention feature map with shape (N, H * W, embed_size).
         """
+        # print("        Entering forward in TransformerBlock...")
+
         attention = self.attention_layer(queries=queries,
                                          keys=keys,
                                          values=values)
+        # print("          MultiHeadAttention computed!")
         x = self.dropout(self.norm1(attention + queries))
         ffn = self.feed_forward(x)
         x = self.dropout(self.norm2(ffn + x))
@@ -202,11 +231,18 @@ class CrossAttentionTransformer(nn.Module):
             Tensor: Aggregated features for support, its shape is (N, H_s * W_s, embed_size).
 
         """
+
+        # print("    Entering forward in CrossAttentionTransformer...")
+
         if self.pos_encoding:
             x_query_pos = x_query + self.query_pos_encoding(x_query)
             x_support_pos = x_support + self.support_pos_encoding(x_support)
 
+            # print("      Positional encodings computed!")
+            # print("      Applying TransformerBlock...")
+
             x_query = self.transformer_block(queries=x_query_pos, keys=x_support_pos, values=x_support)
+            # print(f"     TransformerBlock for x_query ready!")
             x_support = self.transformer_block(queries=x_support_pos, keys=x_query_pos, values=x_query)
         else:
             x_query = self.transformer_block(queries=x_query, keys=x_support, values=x_support)
@@ -287,19 +323,19 @@ class CrossAttentionTransformerBlock(nn.Module):
             Tensor: Aggregated features for support, its shape is (N, C, H_s, W_s).
 
         """
-        '''
-        print("ENTERING forward in CrossAttentionTransformerBlock...")
-        print(f"  x_query.size() = {x_query.size()}")
-        print(f"  x_support.size() = {x_support.size()}")
+
+        # print("ENTERING forward in CrossAttentionTransformerBlock...")
+        # print(f"  x_query.size() = {x_query.size()}")
+        # print(f"  x_support.size() = {x_support.size()}")
 
         # Compress channels from feature maps
-        x_query = self.query_compression(x_query)        # (N, embed_size, H_q, W_q)
-        x_support = self.support_compression(x_support)  # (N, embed_size, H_s, W_s)
+        # x_query = self.query_compression(x_query)        # (N, embed_size, H_q, W_q)
+        # x_support = self.support_compression(x_support)  # (N, embed_size, H_s, W_s)
 
-        print("  Sizes after channel compression:")
-        print(f"    x_query.size() = {x_query.size()}")
-        print(f"    x_support.size() = {x_support.size()}")
-        '''
+        # print("  Sizes after channel compression:")
+        # print(f"    x_query.size() = {x_query.size()}")
+        # print(f"    x_support.size() = {x_support.size()}")
+
 
         # Save original sizes to reshape the output from attention
         x_query_shape = x_query.size()
@@ -309,26 +345,29 @@ class CrossAttentionTransformerBlock(nn.Module):
         x_query = torch.flatten(x_query, start_dim=-2, end_dim=-1)      # (N, embed_size, H_q * W_q)
         x_support = torch.flatten(x_support, start_dim=-2, end_dim=-1)  # (N, embed_size, H_s * W_s)
 
-        '''
-        print("  Sizes after flatten of spatial dimensions:")
-        print(f"    x_query.size() = {x_query.size()}")
-        print(f"    x_support.size() = {x_support.size()}")
-        '''
+
+        # print("  Sizes after flatten of spatial dimensions:")
+        # print(f"    x_query.size() = {x_query.size()}")
+        # print(f"    x_support.size() = {x_support.size()}")
+
 
         # Permute last dimensions
         x_query = torch.permute(x_query, (0, 2, 1))      # (N, H_q * W_q, embed_size)
         x_support = torch.permute(x_support, (0, 2, 1))  # (N, H_s * W_s, embed_size)
 
-        '''
-        print("  Sizes after dims permutation:")
-        print(f"    x_query.size() = {x_query.size()}")
-        print(f"    x_support.size() = {x_support.size()}")
-        '''
+
+        # print("  Sizes after dims permutation:")
+        # print(f"    x_query.size() = {x_query.size()}")
+        # print(f"    x_support.size() = {x_support.size()}")
+
 
         x_query = self.dropout(x_query)
         x_support = self.dropout(x_support)
 
-        for layer in self.layers:
+        for ix, layer in enumerate(self.layers):  # TODO: delete enumerate
+            # print(f"  Layer {ix} of CrossAttentionTransformerBlock...")
+            # print(f"    x_query.size() = {x_query.size()}")
+            # print(f"    x_support.size() = {x_support.size()}")
             x_query, x_support = layer(x_query, x_support)
 
         # Reshape both query and support features to its original sizes

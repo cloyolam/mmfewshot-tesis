@@ -6,7 +6,7 @@ _base_ = [
 # classes splits are predefined in FewShotVOCDataset
 # FewShotVOCDefaultDataset predefine ann_cfg for model reproducibility.
 num_support_ways = 2
-num_support_shots = 10
+num_support_shots = 5
 data = dict(
     train=dict(
         num_support_ways=num_support_ways,
@@ -16,13 +16,14 @@ data = dict(
     test=dict(classes='BASE_CLASSES_SPLIT4'),
     model_init=dict(classes='BASE_CLASSES_SPLIT4'))
 optimizer = dict(
-    # lr=0.004,
-    lr = 0.0015,  # 3 * lr_default / 8
+    lr=0.004,
+    # lr = 0.0015,  # 3 * lr_default / 8
     momentum=0.9,
     paramwise_cfg=dict(custom_keys={'roi_head.bbox_head': dict(lr_mult=2.0)}))
 lr_config = dict(warmup_iters=500, warmup_ratio=0.1, step=[16000])
 # runner = dict(max_iters=18000)
-runner = dict(max_iters=48000)
+# runner = dict(max_iters=48000)
+runner = dict(max_iters=200000)
 evaluation = dict(interval=6000)
 checkpoint_config = dict(interval=6000)
 
