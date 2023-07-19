@@ -6,6 +6,8 @@ from mmfewshot.detection.models.dense_heads import TransformerNeckRPNHead
 
 
 def test_transformer_neck_rpn_head():
+    num_support_ways = 2
+    num_support_shots = 5
     # Tests attention_rpn loss when truth is empty and non-empty.
     s = 256
     img_metas = [{
@@ -19,8 +21,8 @@ def test_transformer_neck_rpn_head():
         in_channels=1024,
         # feat_channels=64,
         feat_channels=1024,
-        num_support_ways=2,
-        num_support_shots=2,
+        num_support_ways=num_support_ways,
+        num_support_shots=num_support_shots,
         roi_extractor=dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', output_size=14, sampling_ratio=0),
@@ -77,8 +79,14 @@ def test_transformer_neck_rpn_head():
     # query_feats = [torch.rand(1, 64, s // 8, s // 8)]  # (N, C, H_q, W_q)
     # support_feats = [torch.rand(4, 64, 20, 20)]  # (N * num_support_ways * num_support_shots, C, H_s, W_s)
     batch_size = 2
-    query_feats = [torch.rand(batch_size * 4, 1024, s // 16, s // 16)]  # (N * num_support_ways * num_support_shots, C, H_q, W_q)
-    support_feats = [torch.rand(batch_size * 4, 1024, 20, 20)]  # (N * num_support_ways * num_support_shots, C, H_s, W_s)
+    samples_per_query = num_support_ways * num_support_shots
+    print(f"batch_size = {batch_size}")
+    print(f"num_support_ways = {num_support_ways}")
+    print(f"num_support_shots = {num_support_shots}")
+    print(f"samples_per_query = {samples_per_query}")
+
+    query_feats = [torch.rand(batch_size * samples_per_query, 1024, s // 16, s // 16)]  # (N * num_support_ways * num_support_shots, C, H_q, W_q)
+    support_feats = [torch.rand(batch_size * samples_per_query, 1024, 20, 20)]  # (N * num_support_ways * num_support_shots, C, H_s, W_s)
 
     print(f"Original query features shape: {query_feats[0].size()}")
     print(f"Original support features shape: {support_feats[0].size()}")
@@ -89,13 +97,14 @@ def test_transformer_neck_rpn_head():
         support_feats,
         query_img_metas=img_metas * batch_size,
         query_gt_bboxes=gt_bboxes * batch_size,
-        support_img_metas=img_metas * 4 * batch_size,
-        support_gt_bboxes=gt_bboxes * 4 * batch_size,
+        support_img_metas=img_metas * samples_per_query * batch_size,
+        support_gt_bboxes=gt_bboxes * samples_per_query * batch_size,
         proposal_cfg=proposal_cfg)
 
     assert sum(losses['loss_rpn_cls']).item() > 0
     assert sum(losses['loss_rpn_bbox']).item() > 0
-    assert len(proposal_list) == 2 * batch_size
+    # print(f"len(proposal_list) = {len(proposal_list)}")
+    assert len(proposal_list) == num_support_ways * num_support_shots * batch_size
 
     print("Second call to forward_train...")
     losses, proposal_list = self.forward_train(
@@ -103,13 +112,14 @@ def test_transformer_neck_rpn_head():
         support_feats,
         query_img_metas=img_metas * batch_size,
         query_gt_bboxes=[torch.empty((0, 4))] * batch_size,
-        support_img_metas=img_metas * 4 * batch_size,
-        support_gt_bboxes=gt_bboxes * 4 * batch_size,
+        support_img_metas=img_metas * samples_per_query * batch_size,
+        support_gt_bboxes=gt_bboxes * samples_per_query * batch_size,
         proposal_cfg=proposal_cfg)
 
     assert sum(losses['loss_rpn_cls']).item() > 0
     assert sum(losses['loss_rpn_bbox']).item() == 0
-    assert len(proposal_list) == 2 * batch_size
+    # print(f"len(proposal_list) = {len(proposal_list)}")
+    assert len(proposal_list) == num_support_ways * num_support_shots * batch_size
 
     # Test simple test
     print("Simple test...")

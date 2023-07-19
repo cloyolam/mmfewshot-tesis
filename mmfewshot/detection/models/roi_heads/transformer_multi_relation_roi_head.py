@@ -11,7 +11,7 @@ from torch import Tensor
 
 
 @HEADS.register_module()
-class MultiRelationRoIHead(StandardRoIHead):
+class TransformerMultiRelationRoIHead(StandardRoIHead):
     """Roi head for `AttentionRPN <https://arxiv.org/abs/1908.01998>`_.
 
     Args:
@@ -73,6 +73,7 @@ class MultiRelationRoIHead(StandardRoIHead):
             dict[str, Tensor]: A dictionary of loss components.
         """
 
+        '''
         print("Entering forward_train in MultiRelationRoIHead...")
         print(f"  len(query_feats) = {len(query_feats)}")
         print(f"  len(support_feats) = {len(support_feats)}")
@@ -90,16 +91,20 @@ class MultiRelationRoIHead(StandardRoIHead):
         print("  proposals:")
         for ix, tensor in enumerate(proposals):
             print(f"    {ix}: {tensor.size()}")
+        '''
 
         # prepare contrastive training data
-        # print("  preparing contrastive training data...")
-        # repeat_query_feats[0] -> [num_support_ways * batch_size, C, H_q, W_q]
-        # query_img_bboxes = [bbox_q1_pos, bbox_q2_pos, bbox_q1_neg, bbox_q2_neg]
+        # repeat_query_feats[0] -> [num_support_shots * num_support_ways * batch_size, C, H_q, W_q]
+        # query_img_bboxes -> [bbox_q1_s1_pos,..., bbox_q1_s5_pos,
+        #                      bbox_q2_s1_pos,..., bbox_q2_s5_pos,
+        #                      bbox_q1_s1_neg,..., bbox_q1_s5_neg,
+        #                      bbox_q2_s1_neg,..., bbox_q2_s5_neg]
         batch_size = len(query_img_metas)
         repeat_query_feats = []
         for lvl in range(len(query_feats)):
             repeat_query_feats.append([query_feats[lvl]])
-        
+
+        '''
         for i in range(batch_size):
             query_gt_labels[i] = torch.zeros_like(query_gt_labels[i])
             query_gt_labels.extend([torch.zeros_like(query_gt_labels[i])] *
@@ -112,6 +117,14 @@ class MultiRelationRoIHead(StandardRoIHead):
                                    (self.num_support_ways - 1))
             query_gt_bboxes.extend([query_gt_bboxes[i]] *
                                    (self.num_support_ways - 1))
+        '''
+
+        query_img_metas = [x for x in query_img_metas for i in
+                           range(self.num_support_shots)] * self.num_support_ways
+        query_gt_bboxes = [x for x in query_gt_bboxes for i in
+                           range(self.num_support_shots)] * self.num_support_ways
+        query_gt_labels = [x for x in query_gt_labels for i in
+                           range(self.num_support_shots)] * self.num_support_ways
 
         assert len(repeat_query_feats) == 1, "query_feats should have only one level"
         for lvl in range(len(repeat_query_feats)):
@@ -122,10 +135,12 @@ class MultiRelationRoIHead(StandardRoIHead):
         print(f"  len(repeat_query_feats) = {len(repeat_query_feats)}")
         print(f"  len(query_img_metas) = {len(query_img_metas)}")
         print(f"  len(query_gt_bboxes) = {len(query_gt_bboxes)}")
+        print(f"  len(query_gt_labels) = {len(query_gt_labels)}")
         # print(f"  repeat_query_feats = {repeat_query_feats}")
         print(f"  repeat_query_feats[0].size() = {repeat_query_feats[0].size()}")
-        print(f"  query_img_metas = {query_img_metas}")
+        # print(f"  query_img_metas = {query_img_metas}")
         print(f"  query_gt_bboxes = {query_gt_bboxes}")
+        print(f"  query_gt_labels = {query_gt_labels}")
         '''
 
         sampling_results = []
@@ -230,6 +245,7 @@ class MultiRelationRoIHead(StandardRoIHead):
         Returns:
             dict: Predicted results and losses.
         """
+
         query_rois = bbox2roi([res.bboxes for res in sampling_results])
         query_roi_feats = self.extract_roi_feat(query_feats, query_rois)
         support_rois = bbox2roi([bboxes for bboxes in support_gt_bboxes])

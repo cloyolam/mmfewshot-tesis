@@ -5,7 +5,7 @@ num_support_ways = 2
 num_support_shots = 10
 # model settings
 model = dict(
-    type='TransformerRPNDetector',
+    type='TransformerRPNWoRoiHeadDetector',
     backbone=dict(frozen_stages=2),
     neck=dict(
         type='CATNeck',

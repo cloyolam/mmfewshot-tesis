@@ -251,6 +251,48 @@ class CrossAttentionTransformer(nn.Module):
         return x_query, x_support
 
 
+class CompressionBlock(nn.Module):
+    """ Change the number of channels from feature maps
+    """
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 padding='same'):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.query_compression = nn.Sequential(
+            nn.Conv2d(self.in_channels, self.in_channels, 3, padding='same'),
+            nn.BatchNorm2d(self.in_channels),
+            nn.ReLU(),
+            nn.Conv2d(self.in_channels, self.out_channels, 1, padding='same'),
+        )
+        self.support_compression = nn.Sequential(
+            nn.Conv2d(self.in_channels, self.in_channels, 3, padding='same'),
+            nn.BatchNorm2d(self.in_channels),
+            nn.ReLU(),
+            nn.Conv2d(self.in_channels, self.out_channels, 1, padding='same'),
+        )
+
+    def forward(self, x_query, x_support):
+        """
+
+        Args:
+            x_query (Tensor): Input query features with shape (N, in_channels, H_q, W_q)
+            x_support (Tensor): Input support features with shape (N, in_channels, H_s, W_s)
+
+        Returns:
+            Tensor: Compressed feature map for query with shape (N, out_channels, H_q, W_q).
+            Tensor: Compressed feature map for support with shape (N, out_channels, H_s, W_s).
+
+        """
+
+        x_query = self.query_compression(x_query)
+        x_support = self.support_compression(x_support)
+
+        return x_query, x_support
+
+
 class CrossAttentionTransformerBlock(nn.Module):
     """Cross-Attention Transformer block. Based on https://arxiv.org/abs/2104.14984.
 
@@ -282,23 +324,16 @@ class CrossAttentionTransformerBlock(nn.Module):
         self.forward_expansion = forward_expansion
         self.pos_encoding = pos_encoding
         self.dropout_prob = dropout_prob
-        # TODO: add query_compression and support_compression as paramters in config file
+        self.with_compression = False
+        # if embed_size < in_channels:
         '''
-        self.query_compression = nn.Sequential(
-            nn.Conv2d(self.in_channels, self.in_channels, 3, padding='same'),
-            nn.BatchNorm2d(self.in_channels),
-            nn.ReLU(),
-            nn.Conv2d(self.in_channels, self.embed_size, 1, padding='same'),
-        )
-        self.support_compression = nn.Sequential(
-            nn.Conv2d(self.in_channels, self.in_channels, 3, padding='same'),
-            nn.BatchNorm2d(self.in_channels),
-            nn.ReLU(),
-            nn.Conv2d(self.in_channels, self.embed_size, 1, padding='same'),
-        )
+        self.with_compression = True
+        self.compression_layer = CompressionBlock(in_channels=self.in_channels,
+                                                  out_channels=self.embed_size)
+        self.expansion_layer = CompressionBlock(in_channels=self.embed_size,
+                                                out_channels=self.in_channels)
         '''
         self.dropout = nn.Dropout(dropout_prob)
-
         self.layers = nn.ModuleList(
             [
                 CrossAttentionTransformer(num_heads=self.num_heads,
@@ -324,18 +359,20 @@ class CrossAttentionTransformerBlock(nn.Module):
 
         """
 
-        # print("ENTERING forward in CrossAttentionTransformerBlock...")
-        # print(f"  x_query.size() = {x_query.size()}")
-        # print(f"  x_support.size() = {x_support.size()}")
+        '''
+        print("ENTERING forward in CrossAttentionTransformerBlock...")
+        print(f"  x_query.size() = {x_query.size()}")
+        print(f"  x_support.size() = {x_support.size()}")
+        '''
 
-        # Compress channels from feature maps
-        # x_query = self.query_compression(x_query)        # (N, embed_size, H_q, W_q)
-        # x_support = self.support_compression(x_support)  # (N, embed_size, H_s, W_s)
+        # if self.with_compression:
+        # x_query, x_support = self.compression_layer(x_query, x_support)
 
-        # print("  Sizes after channel compression:")
-        # print(f"    x_query.size() = {x_query.size()}")
-        # print(f"    x_support.size() = {x_support.size()}")
-
+        '''
+        print("  Sizes after channel compression:")
+        print(f"    x_query.size() = {x_query.size()}")
+        print(f"    x_support.size() = {x_support.size()}")
+        '''
 
         # Save original sizes to reshape the output from attention
         x_query_shape = x_query.size()
@@ -346,20 +383,21 @@ class CrossAttentionTransformerBlock(nn.Module):
         x_support = torch.flatten(x_support, start_dim=-2, end_dim=-1)  # (N, embed_size, H_s * W_s)
 
 
-        # print("  Sizes after flatten of spatial dimensions:")
-        # print(f"    x_query.size() = {x_query.size()}")
-        # print(f"    x_support.size() = {x_support.size()}")
-
+        '''
+        print("  Sizes after flatten of spatial dimensions:")
+        print(f"    x_query.size() = {x_query.size()}")
+        print(f"    x_support.size() = {x_support.size()}")
+        '''
 
         # Permute last dimensions
         x_query = torch.permute(x_query, (0, 2, 1))      # (N, H_q * W_q, embed_size)
         x_support = torch.permute(x_support, (0, 2, 1))  # (N, H_s * W_s, embed_size)
 
-
-        # print("  Sizes after dims permutation:")
-        # print(f"    x_query.size() = {x_query.size()}")
-        # print(f"    x_support.size() = {x_support.size()}")
-
+        '''
+        print("  Sizes after dims permutation:")
+        print(f"    x_query.size() = {x_query.size()}")
+        print(f"    x_support.size() = {x_support.size()}")
+        '''
 
         x_query = self.dropout(x_query)
         x_support = self.dropout(x_support)
@@ -372,10 +410,19 @@ class CrossAttentionTransformerBlock(nn.Module):
 
         # Reshape both query and support features to its original sizes
         # print("  RESHAPING!")
-        x_query_shape = torch.Size([x_support_shape[0], x_query_shape[1], x_query_shape[2], x_query_shape[3]])
+        # x_query_shape = torch.Size([x_support_shape[0], x_query_shape[1], x_query_shape[2], x_query_shape[3]])  # not needed if query was already repeated
         # print(f"  x_query.size() = {x_query.size()} --> x_query_shape = {x_query_shape}")
         # print(f"  x_support.size() = {x_support.size()} --> x_support_shape = {x_support_shape}")
         x_query = torch.reshape(x_query, x_query_shape)
         x_support = torch.reshape(x_support, x_support_shape)
+
+        # if self.with_compression:
+        # x_query, x_support = self.expansion_layer(x_query, x_support)
+
+        '''
+        print("  Sizes after channel expansion:")
+        print(f"    x_query.size() = {x_query.size()}")
+        print(f"    x_support.size() = {x_support.size()}")
+        '''
 
         return x_query, x_support

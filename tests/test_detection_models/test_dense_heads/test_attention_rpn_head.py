@@ -6,6 +6,15 @@ from mmfewshot.detection.models.dense_heads import AttentionRPNHead
 
 
 def test_attention_rpn_head():
+    batch_size = 1
+    num_support_ways = 2
+    num_support_shots = 2
+    samples_per_query = num_support_ways * num_support_shots
+    print(f"batch_size = {batch_size}")
+    print(f"num_support_ways = {num_support_ways}")
+    print(f"num_support_shots = {num_support_shots}")
+    print(f"samples_per_query = {samples_per_query}")
+
     # Tests attention_rpn loss when truth is empty and non-empty.
     s = 256
     img_metas = [{
@@ -16,8 +25,8 @@ def test_attention_rpn_head():
     config = ConfigDict(
         in_channels=64,
         feat_channels=64,
-        num_support_ways=2,
-        num_support_shots=2,
+        num_support_ways=num_support_ways,
+        num_support_shots=num_support_shots,
         roi_extractor=dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', output_size=14, sampling_ratio=0),
@@ -88,6 +97,34 @@ def test_attention_rpn_head():
     assert sum(losses['loss_rpn_bbox']).item() > 0
     assert len(proposal_list) == 2
 
+    '''
+    gt_bboxes = [
+        torch.Tensor([[23.6667, 23.8757, 238.6326, 151.8874],
+                      [23.8757, 23.6667, 151.8874, 238.6326]]),
+    ]
+
+    query_feats = [torch.rand(batch_size, 64, s // 8, s // 8)]
+    support_feats = [torch.rand(batch_size * samples_per_query, 64, 20, 20)]
+
+    print(f"Original query features shape: {query_feats[0].size()}")
+    print(f"Original support features shape: {support_feats[0].size()}")
+
+    print("First call to forward_train...")
+    losses, proposal_list = self.forward_train(
+        query_feats,
+        support_feats,
+        query_img_metas=img_metas * batch_size,
+        query_gt_bboxes=gt_bboxes * batch_size,
+        support_img_metas=img_metas * samples_per_query * batch_size,
+        support_gt_bboxes=gt_bboxes * samples_per_query * batch_size,  # TODO: use only one gt per query
+        proposal_cfg=proposal_cfg)
+
+    assert sum(losses['loss_rpn_cls']).item() > 0
+    assert sum(losses['loss_rpn_bbox']).item() > 0
+    assert len(proposal_list) == num_support_ways * batch_size
+    '''
+
+    print("Second call to forward_train...")
     losses, proposal_list = self.forward_train(
         query_feats,
         support_feats,
@@ -100,6 +137,21 @@ def test_attention_rpn_head():
     assert sum(losses['loss_rpn_cls']).item() > 0
     assert sum(losses['loss_rpn_bbox']).item() == 0
     assert len(proposal_list) == 2
+
+    '''
+    losses, proposal_list = self.forward_train(
+        query_feats,
+        support_feats,
+        query_img_metas=img_metas * batch_size,
+        query_gt_bboxes=[torch.empty((0, 4))] * batch_size,
+        support_img_metas=img_metas * samples_per_query * batch_size,
+        support_gt_bboxes=gt_bboxes * samples_per_query * batch_size,
+        proposal_cfg=proposal_cfg)
+
+    assert sum(losses['loss_rpn_cls']).item() > 0
+    assert sum(losses['loss_rpn_bbox']).item() == 0
+    assert len(proposal_list) == num_support_ways * batch_size
+    '''
 
     # Test simple test
     proposal_list = self.simple_test(query_feats, torch.rand(1, 64, 1, 1),

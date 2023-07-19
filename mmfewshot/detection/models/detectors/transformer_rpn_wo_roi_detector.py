@@ -14,7 +14,7 @@ from .query_support_detector import QuerySupportDetector
 
 
 @DETECTORS.register_module()
-class TransformerRPNDetector(QuerySupportDetector):
+class TransformerRPNWoRoiHeadDetector(QuerySupportDetector):
     """Implementation of Cross Attention Transformer: https://arxiv.org/abs/2104.14984
 
     Args:
@@ -53,7 +53,8 @@ class TransformerRPNDetector(QuerySupportDetector):
             support_backbone=support_backbone,
             support_neck=support_neck,
             rpn_head=rpn_head,
-            roi_head=roi_head,
+            # roi_head=roi_head,
+            roi_head=None,
             train_cfg=train_cfg,
             test_cfg=test_cfg,
             pretrained=pretrained,
@@ -65,7 +66,7 @@ class TransformerRPNDetector(QuerySupportDetector):
         self._forward_saved_support_dict = {
             'gt_labels': [],
             'res4_roi_feats': [],
-            'res5_roi_feats': []
+            # 'res5_roi_feats': []
         }
         # save processed support template features for inference,
         # the processed support template features are generated
@@ -128,17 +129,17 @@ class TransformerRPNDetector(QuerySupportDetector):
         feats = self.extract_support_feat(img)
         rois = bbox2roi([bboxes for bboxes in gt_bboxes])
         res4_roi_feat = self.rpn_head.extract_roi_feat(feats, rois)
-        res5_roi_feat = self.roi_head.extract_roi_feat(feats, rois)
+        # res5_roi_feat = self.roi_head.extract_roi_feat(feats, rois)
         self._forward_saved_support_dict['gt_labels'].extend(gt_labels)
         self._forward_saved_support_dict['res4_roi_feats'].append(
             res4_roi_feat)
-        self._forward_saved_support_dict['res5_roi_feats'].append(
-            res5_roi_feat)
+        # self._forward_saved_support_dict['res5_roi_feats'].append(
+        #     res5_roi_feat)
 
         return {
             'gt_labels': gt_labels,
             'res4_roi_feats': res4_roi_feat,
-            'res5_roi_feats': res5_roi_feat
+            # 'res5_roi_feats': res5_roi_feat
         }
 
     def model_init(self) -> None:
@@ -149,15 +150,15 @@ class TransformerRPNDetector(QuerySupportDetector):
         res4_roi_feats = torch.cat(
             self._forward_saved_support_dict['res4_roi_feats'])
         # used for multi relation head
-        res5_roi_feats = torch.cat(
-            self._forward_saved_support_dict['res5_roi_feats'])
+        # res5_roi_feats = torch.cat(
+        #     self._forward_saved_support_dict['res5_roi_feats'])
         class_ids = set(gt_labels.data.tolist())
         for class_id in class_ids:
             self.inference_support_dict[class_id] = {
                 'res4_roi_feats':
                 res4_roi_feats[gt_labels == class_id].mean([0, 2, 3], True),
-                'res5_roi_feats':
-                res5_roi_feats[gt_labels == class_id].mean([0], True)
+                # 'res5_roi_feats':
+                # res5_roi_feats[gt_labels == class_id].mean([0], True)
             }
         # set the init flag
         self.is_model_init = True
@@ -189,7 +190,7 @@ class TransformerRPNDetector(QuerySupportDetector):
                 The outer list corresponds to each image. The inner list
                 corresponds to each class.
         """
-        assert self.with_bbox, 'Bbox head must be implemented.'
+        # assert self.with_bbox, 'Bbox head must be implemented.'
         assert len(img_metas) == 1, 'Only support single image inference.'
         if (self.inference_support_dict == {}) or (not self.is_model_init):
             # process the saved support features
@@ -200,14 +201,14 @@ class TransformerRPNDetector(QuerySupportDetector):
         for class_id in self.inference_support_dict.keys():
             support_res4_roi_feat = \
                 self.inference_support_dict[class_id]['res4_roi_feats']
-            support_res5_roi_feat = \
-                self.inference_support_dict[class_id]['res5_roi_feats']
+            # support_res5_roi_feat = \
+            #     self.inference_support_dict[class_id]['res5_roi_feats']
             if proposals is None:
                 proposal_list = self.rpn_head.simple_test(
                     query_feats, support_res4_roi_feat, img_metas)
             else:
                 proposal_list = proposals
-
+        '''
             results_dict[class_id] = self.roi_head.simple_test(
                 query_feats,
                 support_res5_roi_feat,
@@ -219,7 +220,8 @@ class TransformerRPNDetector(QuerySupportDetector):
             if len(results_dict[i])
         ]
         return [results]
-
+        '''
+        return [proposal_list]
 
     # Override QuerySupportDetector methods
 
@@ -302,37 +304,24 @@ class TransformerRPNDetector(QuerySupportDetector):
 
 
         # Apply block of Cross Attention Transformer
-        '''
         if self.neck is not None:
             query_feats = query_feats[0]
             support_feats = support_feats[0]
             n_repeat = support_feats.size(0) // query_feats.size(0)
             query_feats = torch.repeat_interleave(query_feats, n_repeat, dim=0)
-            # print(f"query_feats.shape = {query_feats.shape}")
-            # print(f"support_feats.shape = {support_feats.shape}")
+            # print("Shapes before CAT neck:")
+            # print(f"  query_feats.shape = {query_feats.shape}")
+            # print(f"  support_feats.shape = {support_feats.shape}")
             query_feats, support_feats = self.neck(query_feats, support_feats)
-        '''
-        if self.neck is not None:
-            query_feats_cat = query_feats[0]
-            support_feats_cat = support_feats[0]
-            n_repeat = support_feats_cat.size(0) // query_feats_cat.size(0)
-            query_feats_cat = torch.repeat_interleave(query_feats_cat, n_repeat, dim=0)
-            # print(f"query_feats.shape = {query_feats.shape}")
-            # print(f"support_feats.shape = {support_feats.shape}")
-            query_feats_cat, support_feats_cat = self.neck(query_feats_cat, support_feats_cat)
 
         '''
         print("Shapes after CAT neck:")
-        print(f"  query_feats_cat.shape = {query_feats_cat.shape}")
-        print(f"  support_feats_cat.shape = {support_feats_cat.shape}")
+        print(f"  query_feats.shape = {query_feats.shape}")
+        print(f"  support_feats.shape = {support_feats.shape}")
         '''
 
-        # query_feats = (query_feats,)
-        # support_feats = (support_feats,)
-        # losses = dict()
-
-        query_feats_cat = (query_feats_cat,)
-        support_feats_cat = (support_feats_cat,)
+        query_feats = (query_feats,)
+        support_feats = (support_feats,)
         losses = dict()
 
         # RPN forward and loss
@@ -344,7 +333,7 @@ class TransformerRPNDetector(QuerySupportDetector):
                 rpn_losses, proposal_list = self.rpn_head.forward_train(
                     # query_feats,
                     # support_feats,  # TODO: delete? support_feats are not used in TransformerNeckRPNHead
-                    query_feats_cat,
+                    query_feats,
                     # support_feats_cat,
                     query_img_metas=query_data['img_metas'],
                     query_gt_bboxes=query_data['gt_bboxes'],
@@ -372,26 +361,5 @@ class TransformerRPNDetector(QuerySupportDetector):
             # print(f"losses updated with RPN!!")
         else:
             proposal_list = proposals
-
-        # print("Computing ROI head...")
-        roi_losses = self.roi_head.forward_train(
-            # query_feats,
-            # support_feats,
-            query_feats_cat,
-            support_feats_cat,
-            proposals=proposal_list,
-            query_img_metas=query_data['img_metas'],
-            query_gt_bboxes=query_data['gt_bboxes'],
-            query_gt_labels=query_data['gt_labels'],
-            query_gt_bboxes_ignore=query_data.get('gt_bboxes_ignore', None),
-            support_img_metas=support_data['img_metas'],
-            support_gt_bboxes=support_data['gt_bboxes'],
-            support_gt_labels=support_data['gt_labels'],
-            support_gt_bboxes_ignore=support_data.get('gt_bboxes_ignore',
-                                                      None),
-            **kwargs)
-        # print("ROI losses computed!!")
-        losses.update(roi_losses)
-        # print("ROI losses updated!!")
 
         return losses

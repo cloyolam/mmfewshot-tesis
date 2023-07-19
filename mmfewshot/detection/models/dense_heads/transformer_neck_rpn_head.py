@@ -68,9 +68,10 @@ class TransformerNeckRPNHead(RPNHead):
         """
         return self.roi_extractor(feats, rois)
 
+    # TODO: support_feats not needed if CATNeck is used? Delete those args
     def forward_train(self,
                       query_feats: List[Tensor],
-                      support_feats: List[Tensor],
+                      # support_feats: List[Tensor],
                       query_gt_bboxes: List[Tensor],
                       query_img_metas: List[Dict],
                       support_gt_bboxes: List[Tensor],
@@ -105,21 +106,31 @@ class TransformerNeckRPNHead(RPNHead):
                 - losses: (dict[str, Tensor]): A dictionary of loss components.
                 - proposal_list (list[Tensor]): Proposals of each image.
         """
-        '''
-        print("Entering forward_train in TransformerNeckRPNHead...")
-        print(f"  self.num_support_ways = {self.num_support_ways}")      # 2
-        print(f"  self.num_support_shots = {self.num_support_shots}")    # 2
-        print(f"  query_feats[0].size() = {query_feats[0].size()}")      # (N * num_support_ways * num_support_shots, C, H_q, W_q)
-        print(f"  support_feats[0].size() = {support_feats[0].size()}")  # (N * num_support_ways * num_support_shots, C, H_s, W_s)
-        '''
 
         batch_size = len(query_img_metas)
         query_feat = query_feats[0]  # (N * num_support_ways * num_support_shots, C, H_q, W_q)
+
+
+        print("Entering forward_train in TransformerNeckRPNHead...")
+        print(f"  batch_size = {batch_size}")                            # 2
+        print(f"  self.num_support_ways = {self.num_support_ways}")      # 2
+        print(f"  self.num_support_shots = {self.num_support_shots}")    # 5
+        print(f"  query_feat.size() = {query_feat.size()}")              # (N * num_support_ways * num_support_shots, C, H_q, W_q)
+        # print(f"  support_feats[0].size() = {support_feats[0].size()}")  # (N * num_support_ways * num_support_shots, C, H_s, W_s)
+
+
         assert batch_size == query_feat.size(0) // (self.num_support_ways * self.num_support_shots), \
             'invalid shape for query_feats.'
-        support_rois = bbox2roi([bboxes for bboxes in support_gt_bboxes])
-        support_roi_feats = self.extract_roi_feat(support_feats, support_rois)  # (N * num_support_ways * num_support_shots, C, 14, 14)
+        # TODO: delete support_rois and support_roi_feats when using CATNeck?
+        # support_rois = bbox2roi([bboxes for bboxes in support_gt_bboxes])
+        # support_roi_feats = self.extract_roi_feat(support_feats, support_rois)  # (N * num_support_ways * num_support_shots, C, 14, 14)
         # print(f"  support_roi_feats.size() = {support_roi_feats.size()}")
+
+        # TODO: add a config param to decide whether to take the average or not
+
+        ########################################################################
+        # First version: averaging over positive and negative samples before RPN
+        ########################################################################
 
         # Luego del bloque de CrossAttention, query_feat tiene como primera
         # dimensión la cantidad de ejemplos de soporte (num_support_way *
@@ -137,6 +148,8 @@ class TransformerNeckRPNHead(RPNHead):
         # [(1, C, H_q, W_q)_(q1_pos), (1, C, H_q, W_q)_(q1_neg),
         #  (1, C, H_q, W_q)_(q2_pos), (1, C, H_q, W_q)_(q2_neg)]
         # (it averages all cross-attention maps in each support class)
+
+
         avg_query_feats = [
             query_feat[i * self.num_support_shots:(i + 1) *
                        self.num_support_shots].mean([0],
@@ -144,12 +157,7 @@ class TransformerNeckRPNHead(RPNHead):
             for i in range(
                 query_feat.size(0) // self.num_support_shots)
         ]  # [[1, 1024, 16, 16], [1, 1024, 16, 16]] when n_batch=1
-
-        '''
         print(f"  len(avg_query_feats) = {len(avg_query_feats)}")
-        for ix in range(len(avg_query_feats)):
-            print(f"  support_class: {ix}, avg_query_feats[{ix}].size() = {avg_query_feats[ix].size()}")
-        '''
 
         # Concat all positive pair features, [(1, C, H_q, W_q)_(q1),..., (1, C, H_q, W_q)_(qN)]
         pos_pair_feats = [
@@ -157,11 +165,9 @@ class TransformerNeckRPNHead(RPNHead):
             # for i in range(query_feat.size(0) // (self.num_support_shots * self.num_support_ways))
             for i in range(batch_size)
         ]
-        '''
         print(f"  len(pos_pair_feats) = {len(pos_pair_feats)}")  # DEBERÍA SER 1, no 2
         for ix in range(len(pos_pair_feats)):
             print(f"  pos_pair_feats[{ix}] = {pos_pair_feats[ix].size()}")  # DEBERÍA SER [1, 1024, 16, 16]
-        '''
 
         # Concat all negative pair features, [(1, C, H_q, W_q)_(q1),..., (1, C, H_q, W_q)_(qN)]
         neg_pair_feats = [
@@ -170,11 +176,52 @@ class TransformerNeckRPNHead(RPNHead):
             for i in range(batch_size)
             for j in range(self.num_support_ways - 1)
         ]
-        '''
         print(f"  len(neg_pair_feats) = {len(neg_pair_feats)}")
         for ix in range(len(neg_pair_feats)):
             print(f"  neg_pair_feats[{ix}] = {neg_pair_feats[ix].size()}")
+
+
+
+        #################################################################################
+        # Second version: without averaging over positive and negative samples before RPN
+        #################################################################################
+
         '''
+        # Split into positive and negative chunks for each query
+        # [(num_support_shots, C, H_q, W_q)_pos, num_support_shots, C, H_q, W_q)_neg] * N
+        # TODO: use the same variable query_feat?
+        query_splits = torch.split(query_feat, self.num_support_shots, dim=0)
+
+        # Concat all positive features into one tensor
+        # [(1, C, H_q, W_q)_(q1_s1)_pos,..., (1, C, H_q, W_q)_(qN_{num_support_shots})_pos]
+        # TODO: consider the case when n_ways is not 2
+        pos_pair_feats = torch.concat([query_splits[ix] for ix in range(0, batch_size * self.num_support_ways, 2)])
+        pos_pair_feats = torch.split(pos_pair_feats, 1, dim=0)
+        # for ix in range(len(pos_pair_feats)):
+        #     print(f"  pos_pair_feats[{ix}] = {pos_pair_feats[ix].size()}")  # [1, 1024, 16, 16]
+
+        # Concat all negative features into one tensor
+        # [(1, C, H_q, W_q)_(q1_s1)_neg,..., (1, C, H_q, W_q)_(qN_{num_support_shots})_neg]
+        # TODO: consider the case when n_ways > 2
+        neg_pair_feats = torch.concat([query_splits[ix] for ix in range(1, batch_size * self.num_support_ways, 2)])
+        neg_pair_feats = torch.split(neg_pair_feats, 1, dim=0)
+        # for ix in range(len(neg_pair_feats)):
+        #     print(f"  neg_pair_feats[{ix}] = {neg_pair_feats[ix].size()}")  #  [1, 1024, 16, 16]
+
+        # repeat the query_img_metas and query_gt_bboxes to match
+        # the order of positive and negative pairs
+        # [N * num_support_shots] * num_support_ways
+        # TODO: consider the case when n_ways is not 2
+        repeat_query_img_metas = [x for x in repeat_query_img_metas for i in
+                                  range(self.num_support_shots)] * self.num_support_ways
+        repeat_query_gt_bboxes = [x for x in repeat_query_gt_bboxes for i in
+                                  range(self.num_support_shots)] * self.num_support_ways
+        pair_flags.extend([False for _ in range(len(neg_pair_feats))])
+
+        '''
+
+
+        #################################################################################
 
 
         # input features for losses: [pos_pair_feats, neg_pair_feats]
@@ -183,22 +230,57 @@ class TransformerNeckRPNHead(RPNHead):
         # negative pairs
 
         # add positive pairs
-        pair_flags = [True for _ in range(batch_size)]
-        repeat_query_img_metas = copy.deepcopy(query_img_metas)
-        repeat_query_gt_bboxes = copy.deepcopy(query_gt_bboxes)
-        # print("  Positive pairs added!")
+        pair_flags = [True for _ in range(len(pos_pair_feats))]  # N * num_support_shots
+        repeat_query_img_metas = copy.deepcopy(query_img_metas)  # N
+        repeat_query_gt_bboxes = copy.deepcopy(query_gt_bboxes)  # N
+
         # repeat the query_img_metas and query_gt_bboxes to match
         # the order of positive and negative pairs
         for i in range(batch_size):
             repeat_query_img_metas.extend([query_img_metas[i]] *
-                                          (self.num_support_ways - 1))
+                                          (self.num_support_ways - 1))  # N * n_ways
             repeat_query_gt_bboxes.extend([query_gt_bboxes[i]] *
-                                          (self.num_support_ways - 1))
+                                          (self.num_support_ways - 1))  # N * n_ways
             # add negative pairs
             pair_flags.extend([False] * (self.num_support_ways - 1))
-        # print("  Query info repeated!")
+
+
+        print(f"  pair_flags = {pair_flags}")
+        print(f"  len(repeat_query_img_metas) = {len(repeat_query_img_metas)}")
+        print(f"  repeat_query_img_metas = {repeat_query_img_metas}")
+        print(f"  len(repeat_query_gt_bboxes) = {len(repeat_query_gt_bboxes)}")
+        print(f"  repeat_query_gt_bboxes = {repeat_query_gt_bboxes}")
+
+
+        # Call RPNHead forward method, it returns a tuple of 2 lists:
+        # a tensor for anchors scores and a tensor for anchors offsets
+        # ([N * num_support_shots * num_support_ways, num_anchors, H_q, W_q],
+        #  [N * num_support_shots * num_support_ways, num_anchors * 4, H_q, W_q])
         outs = self([torch.cat(pos_pair_feats + neg_pair_feats)])
+
+
+        print("outs:")
+        for ix, tensor in enumerate(outs):
+            print(f"  {ix}: {type(tensor)}, len(tensor)={len(tensor)}")
+
+
+        # Concatenate RPN scores and offsets with metadata from query
+        # ([N * num_support_shots * num_support_ways, num_anchors, H_q, W_q],
+        #  [N * num_support_shots * num_support_ways, num_anchors * 4, H_q, W_q],
+        # )
         loss_inputs = outs + (repeat_query_gt_bboxes, repeat_query_img_metas)
+
+        print(f"type(loss_inputs) = {type(loss_inputs)}")
+        print(f"len(loss_inputs) = {len(loss_inputs)}")
+        print("loss_inputs:")
+        for ix, lista in enumerate(loss_inputs):
+            print(f"  {ix}: {type(lista)}, len(tensor)={len(lista)}")
+            for ix2, tensor in enumerate(lista):
+                if ix < len(loss_inputs) - 1:
+                    print(f"    {ix2}: {tensor.size()}")
+                else:
+                    print(f"    {ix2}: {tensor}")
+
         losses = self.loss(
             *loss_inputs,
             gt_bboxes_ignore=query_gt_bboxes_ignore,
@@ -241,6 +323,18 @@ class TransformerNeckRPNHead(RPNHead):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
+
+        '''
+        print("  Entering loss in TransformerNeckRPNHead...")
+        print(f"    cls_scores[0].size() = {cls_scores[0].size()}")
+        print(f"    bbox_preds[0].size() = {bbox_preds[0].size()}")
+        print(f"    gt_bboxes[0].size() = {gt_bboxes[0].size()}")
+        print(f"    img_metas = {img_metas}")
+        print(f"    gt_labels = {gt_labels}")
+        print(f"    gt_bboxes_ignore = {gt_bboxes_ignore}")
+        print(f"    pair_flags = {pair_flags}")
+        '''
+
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
 

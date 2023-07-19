@@ -1,4 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import argparse
 import torch
 from mmcv import ConfigDict
 
@@ -6,8 +7,8 @@ from mmfewshot.detection.models.roi_heads import (ContrastiveRoIHead,
                                                   FSDetViewRoIHead,
                                                   MetaRCNNRoIHead,
                                                   MultiRelationRoIHead,
-                                                  TwoBranchRoIHead)
-
+                                                  TwoBranchRoIHead,
+                                                  TransformerMultiRelationRoIHead)
 
 def test_contrastive_roi_head():
     cfg = ConfigDict(
@@ -263,6 +264,16 @@ def test_fsdetview_roi_head():
 
 
 def test_multi_relation_roi_head():
+    batch_size = 1
+    num_support_ways = 2
+    num_support_shots = 5
+    samples_per_query = num_support_ways * num_support_shots
+
+    print(f"batch_size = {batch_size}")
+    print(f"num_support_ways = {num_support_ways}")
+    print(f"num_support_shots = {num_support_shots}")
+    print(f"samples_per_query = {samples_per_query}")
+
     cfg = ConfigDict(
         shared_head=dict(
             type='ResLayer',
@@ -295,8 +306,8 @@ def test_multi_relation_roi_head():
             patch_relation=True,
             local_correlation=True,
             global_relation=True),
-        num_support_ways=2,
-        num_support_shots=5,
+        num_support_ways=num_support_ways,
+        num_support_shots=num_support_shots,
         train_cfg=dict(
             assigner=dict(
                 type='MaxIoUAssigner',
@@ -324,14 +335,142 @@ def test_multi_relation_roi_head():
         'scale_factor': 1,
         'pad_shape': (s, s, 3)
     }]
+
     query_feat = [torch.rand(1, 1024, 32, 32)]
     support_feat = [torch.rand(10, 1024, 20, 20)]
     gt_bboxes = [torch.Tensor([[23.6667, 23.8757, 238.6326, 151.8874]])]
 
     losses = self.forward_train(
-        query_feat, support_feat,
-        [torch.Tensor([[1., 1., 30., 30., 0.8]] * 500)] * 2, img_metas,
-        gt_bboxes, [torch.LongTensor([1])], gt_bboxes * 10)
+        query_feats=query_feat,
+        support_feats=support_feat,
+        proposals=[torch.Tensor([[1., 1., 30., 30., 0.8]] * 500)] * 2,
+        query_img_metas=img_metas,
+        query_gt_bboxes=gt_bboxes,
+        query_gt_labels=[torch.LongTensor([1])],
+        support_gt_bboxes=gt_bboxes * 10,
+    )
+
+    '''
+    query_feat = [torch.rand(batch_size, 1024, 32, 32)]
+    support_feat = [torch.rand(batch_size * samples_per_query, 1024, 20, 20)]
+    gt_bboxes = [torch.tensor([[ 23.6667,  23.8757, 238.6326, 151.8874]]),
+                 torch.tensor([[ 24.8757,  24.6667, 151.6326, 238.8874]])]
+
+    losses = self.forward_train(
+        query_feats=query_feat,
+        support_feats=support_feat,
+        proposals=[torch.Tensor([[1., 1., 30., 30., 0.8]] * 500)] * batch_size * num_support_ways,
+        query_img_metas=img_metas * batch_size,
+        query_gt_bboxes=gt_bboxes * batch_size,
+        query_gt_labels=[torch.LongTensor([1])] * batch_size,
+        support_gt_bboxes=gt_bboxes * samples_per_query * batch_size)
+    )
+    '''
+
+    assert 'loss_cls' in losses
+    assert 'acc' in losses
+    assert 'loss_bbox' in losses
+    results = self.simple_test(query_feat, torch.rand(1, 2048, 7, 7),
+                               [torch.Tensor([[1., 1., 30., 30., 0.8]] * 100)],
+                               img_metas)
+    assert len(results) == 1
+    assert len(results[0]) == 1
+
+
+def test_transformer_multi_relation_roi_head():
+    batch_size = 1
+    num_support_ways = 2
+    num_support_shots = 5
+    samples_per_query = num_support_ways * num_support_shots
+
+    print(f"batch_size = {batch_size}")
+    print(f"num_support_ways = {num_support_ways}")
+    print(f"num_support_shots = {num_support_shots}")
+    print(f"samples_per_query = {samples_per_query}")
+
+    cfg = ConfigDict(
+        shared_head=dict(
+            type='ResLayer',
+            depth=50,
+            stage=3,
+            stride=2,
+            dilation=1,
+            style='caffe',
+            norm_cfg=dict(type='BN', requires_grad=False),
+            norm_eval=True),
+        bbox_roi_extractor=dict(
+            type='SingleRoIExtractor',
+            roi_layer=dict(type='RoIAlign', output_size=14, sampling_ratio=0),
+            out_channels=1024,
+            featmap_strides=[16]),
+        bbox_head=dict(
+            type='MultiRelationBBoxHead',
+            with_avg_pool=True,
+            roi_feat_size=14,
+            in_channels=2048,
+            num_classes=1,
+            bbox_coder=dict(
+                type='DeltaXYWHBBoxCoder',
+                target_means=[0.0, 0.0, 0.0, 0.0],
+                target_stds=[0.1, 0.1, 0.2, 0.2]),
+            reg_class_agnostic=True,
+            loss_cls=dict(
+                type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
+            loss_bbox=dict(type='L1Loss', loss_weight=1.0),
+            patch_relation=True,
+            local_correlation=True,
+            global_relation=True),
+        num_support_ways=num_support_ways,
+        num_support_shots=num_support_shots,
+        train_cfg=dict(
+            assigner=dict(
+                type='MaxIoUAssigner',
+                pos_iou_thr=0.5,
+                neg_iou_thr=0.5,
+                min_pos_iou=0.5,
+                match_low_quality=False,
+                ignore_iof_thr=-1),
+            sampler=dict(
+                type='RandomSampler',
+                num=128,
+                pos_fraction=0.5,
+                neg_pos_ub=-1,
+                add_gt_as_proposals=True),
+            pos_weight=-1,
+            debug=False),
+        test_cfg=dict(
+            score_thr=0.05,
+            nms=dict(type='nms', iou_threshold=0.5),
+            max_per_img=100))
+    self = TransformerMultiRelationRoIHead(**cfg)
+    s = 256
+    img_metas = [{
+        'img_shape': (s, s, 3),
+        'scale_factor': 1,
+        'pad_shape': (s, s, 3)
+    }]
+
+    query_feat = [torch.rand(1, 1024, 32, 32)]
+    support_feat = [torch.rand(10, 1024, 20, 20)]
+    gt_bboxes = [torch.Tensor([[23.6667, 23.8757, 238.6326, 151.8874]])]
+
+    '''
+    query_feat = [torch.rand(batch_size * samples_per_query, 1024, 32, 32)]
+    support_feat = [torch.rand(batch_size * num_support_ways * num_support_shots, 1024, 20, 20)]
+    # gt_bboxes = [torch.Tensor([[23.6667, 23.8757, 238.6326, 151.8874]])]
+    gt_bboxes = [torch.tensor([[ 23.6667,  23.8757, 238.6326, 151.8874]]),
+                 torch.tensor([[ 24.8757,  24.6667, 151.6326, 238.8874]])]
+    '''
+
+    losses = self.forward_train(
+        query_feats=query_feat,
+        support_feats=support_feat,
+        proposals=[torch.Tensor([[1., 1., 30., 30., 0.8]] * 500)] * batch_size * samples_per_query,
+        query_img_metas=img_metas * batch_size,
+        # query_gt_bboxes=gt_bboxes * batch_size,
+        query_gt_bboxes=gt_bboxes,
+        query_gt_labels=[torch.LongTensor([1])] * batch_size,
+        support_gt_bboxes=gt_bboxes * samples_per_query * batch_size)
     assert 'loss_cls' in losses
     assert 'acc' in losses
     assert 'loss_bbox' in losses
@@ -393,3 +532,14 @@ def test_two_branch_roi_head():
         feat, [torch.LongTensor([0])] * 2)
     assert 'loss_cls_auxiliary' in auxiliary_losses
     assert 'acc_auxiliary' in auxiliary_losses
+
+
+if __name__ == "__main__":
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument("-m", "--model", help="select the model to test")
+    args = argParser.parse_args()
+
+    if args.model == "t":
+        test_transformer_multi_relation_roi_head()
+    else:
+        test_multi_relation_roi_head()

@@ -62,7 +62,7 @@ class QuerySupportDetector(BaseDetector):
         # support neck only forward support data.
         self.support_neck = build_neck(
             support_neck) if support_neck is not None else None
-        assert roi_head is not None, 'missing config of roi_head'
+        # assert roi_head is not None, 'missing config of roi_head'  # TODO: uncomment when using ROI head
         # when rpn with aggregation neck, the input of rpn will consist of
         # query and support data. otherwise the input of rpn only
         # has query data.
@@ -257,14 +257,30 @@ class QuerySupportDetector(BaseDetector):
         Returns:
             dict[str, Tensor]: a dictionary of loss components
         """
+
+        print("Entering forward_train in QuerySupportDetector...")
         query_img = query_data['img']
         support_img = support_data['img']
+
+
+        print("Shapes before backbone...")
+        print(f"  query_img.shape = {query_img.shape}")
+        print(f"  support_img.shape = {support_img.shape}")
+
+
         query_feats = self.extract_query_feat(query_img)
         support_feats = self.extract_support_feat(support_img)
+
+
+        print("Shapes after backbone:")
+        print(f"  query_feats[0].shape = {query_feats[0].shape}")
+        print(f"  support_feats[0].shape = {support_feats[0].shape}")
+
 
         losses = dict()
 
         # RPN forward and loss
+        print("Computing rpn_with_support...")
         if self.with_rpn:
             proposal_cfg = self.train_cfg.get('rpn_proposal',
                                               self.test_cfg.rpn)
@@ -292,10 +308,14 @@ class QuerySupportDetector(BaseDetector):
                     gt_bboxes_ignore=copy.deepcopy(
                         query_data.get('gt_bboxes_ignore', None)),
                     proposal_cfg=proposal_cfg)
+            print("rpn_losses and proposal_list computed!!")
             losses.update(rpn_losses)
+            print(f"losses updated with RPN!!")
+
         else:
             proposal_list = proposals
 
+        print("Computing ROI head...")
         roi_losses = self.roi_head.forward_train(
             query_feats,
             support_feats,

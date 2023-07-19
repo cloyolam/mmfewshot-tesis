@@ -7,9 +7,11 @@ from .meta_rcnn_roi_head import MetaRCNNRoIHead
 from .multi_relation_roi_head import MultiRelationRoIHead
 from .shared_heads import MetaRCNNResLayer
 from .two_branch_roi_head import TwoBranchRoIHead
+from .transformer_multi_relation_roi_head import TransformerMultiRelationRoIHead
 
 __all__ = [
     'CosineSimBBoxHead', 'ContrastiveBBoxHead', 'MultiRelationBBoxHead',
     'ContrastiveRoIHead', 'MultiRelationRoIHead', 'FSDetViewRoIHead',
-    'MetaRCNNRoIHead', 'MetaRCNNResLayer', 'TwoBranchRoIHead'
+    'MetaRCNNRoIHead', 'MetaRCNNResLayer', 'TwoBranchRoIHead',
+    'TransformerMultiRelationRoIHead'
 ]
