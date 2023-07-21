@@ -104,7 +104,7 @@ class AttentionRPNHead(RPNHead):
                 - proposal_list (list[Tensor]): Proposals of each image.
         """
 
-
+        '''
         print("Entering forward_train in AttentionRPNHead...")
         print(f"  self.num_support_ways = {self.num_support_ways}")
         print(f"  self.num_support_shots = {self.num_support_shots}")
@@ -114,6 +114,7 @@ class AttentionRPNHead(RPNHead):
         print(f"  query_feats[0].size() = {query_feats[0].size()}")
         print(f"  support_feats[0].size() = {support_feats[0].size()}")
         print(f"  len(support_gt_bboxes) = {len(support_gt_bboxes)}")
+        '''
 
         query_feat = query_feats[0]
         # convert a list of bboxes to roi format.
@@ -121,12 +122,12 @@ class AttentionRPNHead(RPNHead):
         support_rois = bbox2roi([bboxes for bboxes in support_gt_bboxes])
         support_roi_feats = self.extract_roi_feat(support_feats, support_rois)
 
-
+        '''
         print(f"  query_feat.size() = {query_feat.size()}")
         print(f"  support_rois.size() = {support_rois.size()}")
         print(f"  suppot_rois = {support_rois}")
         print(f"  support_roi_feats.size() = {support_roi_feats.size()}")
-
+        '''
 
         # support features are placed in follow order:
         # [pos * num_support_shots,
@@ -143,10 +144,12 @@ class AttentionRPNHead(RPNHead):
                 support_roi_feats.size(0) // self.num_support_shots)
         ]
 
+        '''
         print("  avg_support_feats:")
         print(f"    len(avg_support_feats) = {len(avg_support_feats)}")
         for ix, tensor in enumerate(avg_support_feats):
             print(f"    {ix}: {tensor.size()}")
+        '''
 
         # Concat all positive pair features
         # [(1, C, H_q, W_q)_q1, ... (1, C, H_q, W_q)_qN]
@@ -157,11 +160,12 @@ class AttentionRPNHead(RPNHead):
             for i in range(query_feat.size(0))
         ]
 
+        '''
         print("  pos_pair_feats:")
         print(f"    len(pos_pair_feats) = {len(pos_pair_feats)}")
         for ix in range(len(pos_pair_feats)):
             print(f"    pos_pair_feats[{ix}] = {pos_pair_feats[ix].size()}")
-
+        '''
 
         # Concat all negative pair features
         # [(1, C, H_q, W_q)_q1, ... (1, C, H_q, W_q)_qN]
@@ -174,14 +178,15 @@ class AttentionRPNHead(RPNHead):
             for j in range(self.num_support_ways - 1)
         ]
 
+        '''
         print("  neg_pair_feats:")
         print(f"    len(neg_pair_feats) = {len(neg_pair_feats)}")
         for ix in range(len(neg_pair_feats)):
             print(f"    neg_pair_feats[{ix}] = {neg_pair_feats[ix].size()}")
-
+        '''
 
         batch_size = len(query_img_metas)
-        print(f"  batch_size = {batch_size}")
+        # print(f"  batch_size = {batch_size}")
         # input features for losses: [pos_pair_feats, neg_pair_feats]
         # pair_flags are used to set all the gt_label from negative pairs to
         # bg classes in losses. True means positive pairs and False means
@@ -192,9 +197,11 @@ class AttentionRPNHead(RPNHead):
         repeat_query_img_metas = copy.deepcopy(query_img_metas)
         repeat_query_gt_bboxes = copy.deepcopy(query_gt_bboxes)
 
+        '''
         print(f"  len(pair_flags) = {len(pair_flags)}")
         print(f"  len(repeat_query_img_metas) = {len(repeat_query_img_metas)}")
         print(f"  len(repeat_query_gt_bboxes) = {len(repeat_query_gt_bboxes)}")
+        '''
 
         # repeat the query_img_metas and query_gt_bboxes to match
         # the order of positive and negative pairs
@@ -206,6 +213,7 @@ class AttentionRPNHead(RPNHead):
             # add negative pairs
             pair_flags.extend([False] * (self.num_support_ways - 1))
 
+        '''
         print("  After repeating:")
         print(f"  len(repeat_query_img_metas) = {len(repeat_query_img_metas)}")
         print(f"  repeat_query_img_metas: {repeat_query_img_metas}")
@@ -213,17 +221,21 @@ class AttentionRPNHead(RPNHead):
         for ix, tensor in enumerate(repeat_query_gt_bboxes):
             print(f"    {ix}: {tensor.size()}")
         print(f"  pair_flags = {pair_flags}")
+        '''
 
         outs = self([torch.cat(pos_pair_feats + neg_pair_feats)])
 
+        '''
         print(f"  len(outs) = {len(outs)}")
         for ix, lista in enumerate(outs):
             print(f"  {ix}: {type(lista)}, len(lista) = {len(lista)}")
             for ix2, tensor in enumerate(lista):
                 print(f"    {ix}: {tensor.size()}")
+        '''
 
         loss_inputs = outs + (repeat_query_gt_bboxes, repeat_query_img_metas)
 
+        '''
         print(f"  type(loss_inputs) = {type(loss_inputs)}")
         print(f"  len(loss_inputs) = {len(loss_inputs)}")
         print("  loss_inputs:")
@@ -234,6 +246,7 @@ class AttentionRPNHead(RPNHead):
                     print(f"      {ix2}: {tensor.size()}")
                 else:
                     print(f"      {ix2}: {tensor}")
+        '''
 
         losses = self.loss(
             *loss_inputs,
@@ -241,11 +254,14 @@ class AttentionRPNHead(RPNHead):
             pair_flags=pair_flags)
         proposal_list = self.get_bboxes(
             *outs, img_metas=repeat_query_img_metas, cfg=proposal_cfg)
+
+        '''
         print(f"  len(proposal_list) = {len(proposal_list)}")
         for ix, proposal in enumerate(proposal_list):
             print(f"    {ix}: {proposal.size()}")
             print(f"          {proposal}")
-        # print(f"  proposal_list = {proposal_list}")
+        print(f"  proposal_list = {proposal_list}")
+        '''
         return losses, proposal_list
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
@@ -282,6 +298,7 @@ class AttentionRPNHead(RPNHead):
             dict[str, Tensor]: A dictionary of loss components.
         """
 
+        '''
         print("Entering loss in AttentionRPNHead...")
         print(f"  len(cls_scores) = {len(cls_scores)}")
         print(f"  cls_scores[0].size() = {cls_scores[0].size()}")
@@ -294,28 +311,29 @@ class AttentionRPNHead(RPNHead):
         print(f"  len(img_metas) = {len(img_metas)}")
         print(f"  img_metas: {img_metas}")
         print(f"  pair_flags = {pair_flags}")
-
+        '''
 
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]  # [[H_q, W_q]]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
 
-        print(f"  featmap_sizes = {featmap_sizes}")  # [[16, 16]]
+        # print(f"  featmap_sizes = {featmap_sizes}")  # [[16, 16]]
 
         device = cls_scores[0].device
         # get anchors and training targets
         anchor_list, valid_flag_list = self.get_anchors(
             featmap_sizes, img_metas, device=device)
 
+        '''
         print(f"  len(anchor_list) = {len(anchor_list)}")
         for ix, lst in enumerate(anchor_list):
             print(f"    {ix}: {lst[0].size()}")
         print(f"  len(valid_flag_list) = {len(valid_flag_list)}")
         for ix, lst in enumerate(valid_flag_list):
             print(f"    {ix}: {lst[0].size()}; torch.all(lst[0]) = {torch.all(lst[0])}")
-
+        '''
 
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1  # 1
-        print(f"  label_channels = {label_channels}")
+        # print(f"  label_channels = {label_channels}")
         cls_reg_targets = self.get_targets(
             anchor_list,
             valid_flag_list,
@@ -326,7 +344,7 @@ class AttentionRPNHead(RPNHead):
             label_channels=label_channels)
         if cls_reg_targets is None:
             return None
-        print(f"  Targets computed!")
+        # print(f"  Targets computed!")
 
         # labels_list:  [H_q x W_q x num_anchors] * num_imgs = torch.Size([4, 3840]) -> fg (0) / bg (1) labels for anchors
         # label_weights_list: torch.Size([4, 3840]) -> a weight of 1.0 is assigned to sampled anchors
@@ -337,12 +355,14 @@ class AttentionRPNHead(RPNHead):
         (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
          num_total_pos, num_total_neg) = cls_reg_targets
 
+        '''
         print(f"  labels_list = {labels_list}")
         print(f"  labels_list[0].size()) = {labels_list[0].size()}")
         print(f"  label_weights_list = {label_weights_list}")
         print(f"  label_weights_list[0].size()) = {label_weights_list[0].size()}")
         print(f"  bbox_targets_list[0].size()) = {bbox_targets_list[0].size()}")
         print(f"  bbox_weights_list[0].size()) = {bbox_weights_list[0].size()}")
+        '''
 
         # get the indices of negative pairs
         neg_idxes = [not f for f in pair_flags]  # [False, False, True, True]
@@ -353,31 +373,35 @@ class AttentionRPNHead(RPNHead):
                 labels_list[lvl][neg_idxes] == 0).sum().item()
             labels_list[lvl][neg_idxes] = 1
             bbox_weights_list[lvl][neg_idxes] = 0
-        print(f"  self.sampling = {self.sampling}")
+        # print(f"  self.sampling = {self.sampling}")
         if self.sampling:
             num_total_samples = num_total_pos + num_total_neg  # 1024 (16 + 1008)
         else:
             num_total_samples = num_total_pos - num_pos_from_neg_pairs
-        print(f"  num_total_samples = {num_total_samples}")
+        # print(f"  num_total_samples = {num_total_samples}")
         # anchor number of multi levels
         num_level_anchors = [anchors.size(0) for anchors in anchor_list[0]]  # [3840], just one level
-        print(f"  num_level_anchors = {num_level_anchors}")
+        # print(f"  num_level_anchors = {num_level_anchors}")
         # concat all level anchors and flags to a single Tensor
         # [H_q x W_q x num_anchors, 4] x num_imgs = [torch.Size([3840, 4])] * 4
         concat_anchor_list = []
         for i in range(len(anchor_list)):
             concat_anchor_list.append(torch.cat(anchor_list[i]))
+        '''
         print(f"  len(concat_anchor_list) = {len(concat_anchor_list)}")
         for ix, tensor in enumerate(concat_anchor_list):
             print(f"    {ix}: {tensor.size()}")
+        '''
         # convert targets by image to targets by feature level
         # [target_img0, target_img1] -> [target_level0, target_level1, ...]
         # [torch.Size([4, 3840, 4])], just one level
         all_anchor_list = images_to_levels(concat_anchor_list,
                                            num_level_anchors)
+        '''
         print(f"  len(all_anchor_list) = {len(all_anchor_list)}")
         for ix, tensor in enumerate(all_anchor_list):
             print(f"    {ix}: {tensor.size()}")
+        '''
 
         # binary cross-entropy for losses_cls, l1 loss for losses_bbox
         losses_cls, losses_bbox = multi_apply(
