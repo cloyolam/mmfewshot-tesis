@@ -187,6 +187,7 @@ class AttentionRPNDetector(QuerySupportDetector):
                 The outer list corresponds to each image. The inner list
                 corresponds to each class.
         """
+        print("Entering simple_test in AttentionRPNDetector...")
         assert self.with_bbox, 'Bbox head must be implemented.'
         assert len(img_metas) == 1, 'Only support single image inference.'
         if (self.inference_support_dict == {}) or (not self.is_model_init):
@@ -196,6 +197,7 @@ class AttentionRPNDetector(QuerySupportDetector):
         results_dict = {}
         query_feats = self.extract_feat(img)
         for class_id in self.inference_support_dict.keys():
+            print(f"class_id = {class_id}")
             support_res4_roi_feat = \
                 self.inference_support_dict[class_id]['res4_roi_feats']
             support_res5_roi_feat = \
@@ -206,14 +208,32 @@ class AttentionRPNDetector(QuerySupportDetector):
             else:
                 proposal_list = proposals
 
+            print("  After RPN head:")
+            print(f"    len(proposal_list) = {len(proposal_list)}")
+            print(f"    proposal_list[0].size() = {proposal_list[0].size()}")
+            print(f"    {proposal_list}")
+
             results_dict[class_id] = self.roi_head.simple_test(
                 query_feats,
                 support_res5_roi_feat,
                 proposal_list,
                 img_metas,
                 rescale=rescale)
+
+            print("  After ROI head:")
+            print(f"    len(results_dict[{class_id}]) = {len(results_dict[class_id])}")
+            print(f"    results_dict[{class_id}] = {results_dict[class_id]}")
+
+
+        print("results_dict:")
+        for k, v in results_dict.items():
+            print(f"  {k}: type(v) = {type(v)}, len(v) = {len(v)} ")
+
         results = [
             results_dict[i][0][0] for i in sorted(results_dict.keys())
             if len(results_dict[i])
         ]
+        print("results:")
+        print(f"  len(results) = {len(results)}")
+        print(f"  {results}")
         return [results]

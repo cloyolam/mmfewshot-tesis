@@ -170,6 +170,8 @@ class QuerySupportDetector(BaseDetector):
         elif mode == 'model_init':
             return self.forward_model_init(img, img_metas, **kwargs)
         elif mode == 'test':
+            # BaseDetector (mmdet/models/detectors/base.py)
+            # It calls to simple_test in the class that inherits from QuerySupportDetector
             return self.forward_test(img, img_metas, **kwargs)
         else:
             raise ValueError(

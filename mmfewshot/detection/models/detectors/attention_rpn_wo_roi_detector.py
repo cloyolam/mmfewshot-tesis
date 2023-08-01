@@ -116,6 +116,7 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
                 - `res4_roi_feat` (Tensor): roi features of res4 layer.
                 - `res5_roi_feat` (Tensor): roi features of res5 layer.
         """
+        # print("\nEntering forward_model_init in AttentionRPNWoRoiHeadDetector...")
         self.is_model_init = False
         # extract support template features will reset `is_model_init` flag
         assert gt_bboxes is not None and gt_labels is not None, \
@@ -124,12 +125,19 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
             'Support instance have more than two labels'
 
         feats = self.extract_support_feat(img)
+        # print(f"  len(feats) = {len(feats)}")
+        # for ix, tensor in enumerate(feats):
+        #     print(f"    {ix}: {tensor.size()}")
         rois = bbox2roi([bboxes for bboxes in gt_bboxes])
+        # print(f"  rois.size() = {rois.size()}")
         res4_roi_feat = self.rpn_head.extract_roi_feat(feats, rois)
+        # print(f"  res4_roi_feat.size() = {res4_roi_feat.size()}")
         # res5_roi_feat = self.roi_head.extract_roi_feat(feats, rois)
         self._forward_saved_support_dict['gt_labels'].extend(gt_labels)
         self._forward_saved_support_dict['res4_roi_feats'].append(
             res4_roi_feat)
+        # print(f"  len(self._forward_saved_support_dict['gt_labels']) = {len(self._forward_saved_support_dict['gt_labels'])}")
+        # print(f"  len(self._forward_saved_support_dict['res4_roi_feats']) = {len(self._forward_saved_support_dict['res4_roi_feats'])}")
         # self._forward_saved_support_dict['res5_roi_feats'].append(
         #     res5_roi_feat)
 
@@ -141,52 +149,44 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
 
     def model_init(self) -> None:
         """process the saved support features for model initialization."""
+        print("Entering model_init in AttentionRPNWoRoiHeadDetector...")
         self.inference_support_dict.clear()
         gt_labels = torch.cat(self._forward_saved_support_dict['gt_labels'])
+        print(f"  gt_labels.size() = {gt_labels.size()}")
         # used for attention rpn head
         res4_roi_feats = torch.cat(
             self._forward_saved_support_dict['res4_roi_feats'])
+        print(f"  res4_roi_feats.size() = {res4_roi_feats.size()}")
         # used for multi relation head
         # res5_roi_feats = torch.cat(
         #     self._forward_saved_support_dict['res5_roi_feats'])
         class_ids = set(gt_labels.data.tolist())
+        print(f"  class_ids = {class_ids}")
         for class_id in class_ids:
+            print(f"  class_id: {class_id}")
+            print(f"    before_averaging: {res4_roi_feats[gt_labels == class_id].size()}")
+            # TODO: don't average supports for each class
             self.inference_support_dict[class_id] = {
                 'res4_roi_feats':
                 res4_roi_feats[gt_labels == class_id].mean([0, 2, 3], True),
                 # 'res5_roi_feats':
                 # res5_roi_feats[gt_labels == class_id].mean([0], True)
             }
+            print(f"    after averaging: {self.inference_support_dict[class_id]['res4_roi_feats'].size()}")
         # set the init flag
         self.is_model_init = True
         # clear support dict
         for k in self._forward_saved_support_dict.keys():
             self._forward_saved_support_dict[k].clear()
 
+
     def simple_test(self,
                     img: Tensor,
                     img_metas: List[Dict],
                     proposals: Optional[List[Tensor]] = None,
                     rescale: bool = False) -> List[List[np.ndarray]]:
-        """Test without augmentation.
-
-        Args:
-            img (Tensor): Input images of shape (N, C, H, W).
-                Typically these should be mean centered and std scaled.
-            img_metas (list[dict]): list of image info dict where each dict
-                has: `img_shape`, `scale_factor`, `flip`, and may also contain
-                `filename`, `ori_shape`, `pad_shape`, and `img_norm_cfg`.
-                For details on the values of these keys see
-                :class:`mmdet.datasets.pipelines.Collect`.
-            proposals (list[Tensor] | None): override rpn proposals with
-                custom proposals. Use when `with_rpn` is False. Default: None.
-            rescale (bool): If True, return boxes in original image space.
-
-        Returns:
-            list[list[np.ndarray]]: BBox results of each image and classes.
-                The outer list corresponds to each image. The inner list
-                corresponds to each class.
-        """
+        """The same as simple_test in AttentionRPNDetector, but without the ROI head"""
+        print("Entering simple_test in AttentionRPNWoROIDetector...")
         # assert self.with_bbox, 'Bbox head must be implemented.'
         assert len(img_metas) == 1, 'Only support single image inference.'
         if (self.inference_support_dict == {}) or (not self.is_model_init):
@@ -196,6 +196,7 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
         results_dict = {}
         query_feats = self.extract_feat(img)
         for class_id in self.inference_support_dict.keys():
+            print(f"class_id = {class_id}")
             support_res4_roi_feat = \
                 self.inference_support_dict[class_id]['res4_roi_feats']
             # support_res5_roi_feat = \
@@ -205,6 +206,14 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
                     query_feats, support_res4_roi_feat, img_metas)
             else:
                 proposal_list = proposals
+
+            print("After RPN head:")
+            print(f"  len(proposal_list) = {len(proposal_list)}")
+            print(f"  proposal_list[0].size() = {proposal_list[0].size()}")
+            print(f"  {proposal_list}")
+
+            results_dict[class_id] = proposal_list[0].detach().cpu().numpy()
+
         '''
             results_dict[class_id] = self.roi_head.simple_test(
                 query_feats,
@@ -212,13 +221,19 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
                 proposal_list,
                 img_metas,
                 rescale=rescale)
+        '''
         results = [
-            results_dict[i][0][0] for i in sorted(results_dict.keys())
+            results_dict[i] for i in sorted(results_dict.keys())
             if len(results_dict[i])
         ]
+
+        print("After ROI head:")
+        print(f"  len(results) = {len(results)}")
+        for ix, elem in enumerate(results):
+            print(f"  {ix} = {elem.shape}")
+        print(f"  {[results]}")
         return [results]
-        '''
-        return [proposal_list]
+
 
     # Override foward_train from QuerySupportDetector
     def forward_train(self,
@@ -300,3 +315,55 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
             proposal_list = proposals
 
         return losses
+
+
+    def model_init_custom(self) -> None:
+        """Similar to model_init, but saving all support features without averaging"""
+        print("Entering model_init_custom in AttentionRPNWoRoiHeadDetector...")
+        self.inference_support_dict.clear()
+        gt_labels = torch.cat(self._forward_saved_support_dict['gt_labels'])
+        print(f"  gt_labels.size() = {gt_labels.size()}")
+        # used for attention rpn head
+        res4_roi_feats = torch.cat(
+            self._forward_saved_support_dict['res4_roi_feats'])
+        print(f"  res4_roi_feats.size() = {res4_roi_feats.size()}")
+        # used for multi relation head
+        # res5_roi_feats = torch.cat(
+        #     self._forward_saved_support_dict['res5_roi_feats'])
+        class_ids = set(gt_labels.data.tolist())
+        print(f"  class_ids = {class_ids}")
+        for class_id in class_ids:
+            # print(f"  class_id: {class_id}")
+            # print(f"    before: {res4_roi_feats[gt_labels == class_id].size()}")
+
+            '''
+            # Averaging over all supports for each class
+            self.inference_support_dict[class_id] = {
+                'res4_roi_feats':
+                res4_roi_feats[gt_labels == class_id].mean([0, 2, 3], True),
+                # 'res5_roi_feats':
+                # res5_roi_feats[gt_labels == class_id].mean([0], True)
+            }
+            '''
+
+            # Without averaging suports
+            self.inference_support_dict[class_id] = {
+                'res4_roi_feats':
+                res4_roi_feats[gt_labels == class_id],
+                # 'res5_roi_feats':
+                # res5_roi_feats[gt_labels == class_id].mean([0], True)
+            }
+            # print(f"    after: {self.inference_support_dict[class_id]['res4_roi_feats'].size()}")
+
+        print("  inference_support_dict:")
+        for class_id in class_ids:
+            support_size = self.inference_support_dict[class_id]['res4_roi_feats'].size()
+            print(f"    class_id = {class_id}; support_size = {support_size}")
+
+        # set the init flag
+        self.is_model_init = True
+        # clear support dict
+        for k in self._forward_saved_support_dict.keys():
+            self._forward_saved_support_dict[k].clear()
+
+

@@ -309,6 +309,7 @@ class MultiRelationRoIHead(StandardRoIHead):
                 The outer list corresponds to each image. The inner list
                 corresponds to each class.
         """
+        # print("Entering simple_test in multi_relation_head...")
         assert self.with_bbox, 'Bbox head must be implemented.'
         det_bboxes, det_labels = self.simple_test_bboxes(
             query_feats,

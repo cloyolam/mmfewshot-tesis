@@ -36,18 +36,31 @@ def parse_args():
 
 def main(args):
     # build the model from a config file and a checkpoint file
+    print("Calling init_detector...")
     model = init_detector(args.config, args.checkpoint, device=args.device)
     # prepare support images, each demo image only contain one instance
+    print("Model initialized!")
     files = os.listdir(args.support_images_dir)
     support_images = [
         os.path.join(args.support_images_dir, file) for file in files
     ]
     classes = [file.split('.')[0] for file in files]
     support_labels = [[file.split('.')[0]] for file in files]
+    print("Processing support images...")
     process_support_images(
         model, support_images, support_labels, classes=classes)
+    print("Support images processed!")
     # test a single image
+    # mmfewshot/detection/apis/inference.py
+    # It calls to foward_test in BaseDetector, which calls to simple_test in AttentionRPNDetector
+    print("Calling inference_detector...")
     result = inference_detector(model, args.image)
+    print(f"Before thr filter: {result[0].shape}")
+    # Filter by confidence thrshold
+    result = result[0]
+    result = [result[result[:, 4] > 0.9]]
+    print(f"After thr filter: {result[0].shape}")
+    print("Inference done!")
     # show the results
     show_result_pyplot(model, args.image, result, score_thr=args.score_thr)
 

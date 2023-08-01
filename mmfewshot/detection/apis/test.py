@@ -35,14 +35,18 @@ def single_gpu_test(model: nn.Module,
     Returns:
         list: The prediction results.
     """
+    print("Entering single_gpu_test...")
     model.eval()
     results = []
     dataset = data_loader.dataset
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
+        print(f"\nImage {i}:")
         with torch.no_grad():
             # forward in `test` mode
+            # mmdet/models/detectors/base.py
             result = model(mode='test', rescale=True, **data)
+            print(f"  Image {i} processed, type(result) = {type(result)}")
 
         batch_size = len(result)
         if show or out_dir:
@@ -153,13 +157,19 @@ def single_gpu_model_init(model: nn.Module, data_loader: DataLoader) -> List:
     Returns:
         list[Tensor]: Extracted support template features.
     """
+    print("Entering single_gpu_model_init...")
     model.eval()
     results = []
     dataset = data_loader.dataset
     logger = get_root_logger()
     logger.info('starting model initialization...')
+    print(f"len(dataset) = {len(dataset)}")
     prog_bar = mmcv.ProgressBar(len(dataset))
+    print(f"\nlen(data_loader) = {len(data_loader)}")
     for i, data in enumerate(data_loader):
+        # print(f"{i}:")
+        # for k, v in data.items():
+        #     print(f"  {k}: {type(v)}")
         with torch.no_grad():
             # forward in `model_init` mode
             result = model(mode='model_init', **data)
@@ -167,8 +177,10 @@ def single_gpu_model_init(model: nn.Module, data_loader: DataLoader) -> List:
         prog_bar.update(num_tasks=len(data['img_metas'].data[0]))
     # `model_init` will process the forward features saved in model.
     if is_module_wrapper(model):
+        print("is_module_wrapper(model)!")
         model.module.model_init()
     else:
+        print("not is_module_wrapper(module)!")
         model.model_init()
     logger.info('model initialization done.')
 
@@ -219,4 +231,36 @@ def multi_gpu_model_init(model: nn.Module, data_loader: DataLoader) -> List:
         model.model_init()
     if rank == 0:
         logger.info('model initialization done.')
+    return results
+
+
+def single_gpu_model_init_custom(model: nn.Module, data_loader: DataLoader) -> List:
+    """The same as single_gpu_model_init, but without averaging supports"""
+    print("Entering single_gpu_model_init_custom...")
+    model.eval()
+    results = []
+    dataset = data_loader.dataset
+    logger = get_root_logger()
+    logger.info('starting model initialization...')
+    print(f"len(dataset) = {len(dataset)}")
+    prog_bar = mmcv.ProgressBar(len(dataset))
+    print(f"\nlen(data_loader) = {len(data_loader)}")
+    for i, data in enumerate(data_loader):
+        # print(f"{i}:")
+        # for k, v in data.items():
+        #     print(f"  {k}: {type(v)}")
+        with torch.no_grad():
+            # forward in `model_init` mode
+            result = model(mode='model_init', **data)
+        results.append(result)
+        prog_bar.update(num_tasks=len(data['img_metas'].data[0]))
+    # `model_init` will process the forward features saved in model.
+    if is_module_wrapper(model):
+        print("is_module_wrapper(model)!")
+        model.module.model_init_custom()
+    else:
+        print("not is_module_wrapper(module)!")
+        model.model_init_custom()
+    logger.info('model initialization done.')
+
     return results
