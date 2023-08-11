@@ -439,6 +439,7 @@ class AttentionRPNHead(RPNHead):
             List[Tensor]: Proposals of each image, each item has shape (n, 5),
                 where 5 represent (tl_x, tl_y, br_x, br_y, score).
         """
+        # print("Entering simple_test in AttentionRPNHead...")
         # fuse support and query features
         # print("Entering simple_test in AttentionRPNHead...")
         # print(f"  query_feats[0].size() = {query_feats[0].size()}")
@@ -447,6 +448,7 @@ class AttentionRPNHead(RPNHead):
             query_feat=query_feats[0], support_feat=support_feat)
         # mmdet/models/dense_heads/dense_test_mixins.py
         proposal_list = self.simple_test_rpn(feats, query_img_metas)
+        # print(f"  rescale = {rescale}")
         if rescale:
             for proposals, meta in zip(proposal_list, query_img_metas):
                 proposals[:, :4] /= proposals.new_tensor(meta['scale_factor'])

@@ -37,6 +37,7 @@ def parse_args():
 def main(args):
     # build the model from a config file and a checkpoint file
     print("Calling init_detector...")
+    # mmfewshot/detection/apis/inference.py
     model = init_detector(args.config, args.checkpoint, device=args.device)
     # prepare support images, each demo image only contain one instance
     print("Model initialized!")
@@ -47,6 +48,7 @@ def main(args):
     classes = [file.split('.')[0] for file in files]
     support_labels = [[file.split('.')[0]] for file in files]
     print("Processing support images...")
+    # mmfewshot/detection/apis/inference.py
     process_support_images(
         model, support_images, support_labels, classes=classes)
     print("Support images processed!")
@@ -56,7 +58,8 @@ def main(args):
     print("Calling inference_detector...")
     result = inference_detector(model, args.image)
     print(f"Before thr filter: {result[0].shape}")
-    # Filter by confidence thrshold
+    print(f"  {result[0][:10]}")
+    # Filter by confidence threshold
     result = result[0]
     result = [result[result[:, 4] > 0.9]]
     print(f"After thr filter: {result[0].shape}")

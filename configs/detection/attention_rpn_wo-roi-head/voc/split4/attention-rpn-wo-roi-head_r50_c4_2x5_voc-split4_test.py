@@ -26,7 +26,7 @@ lr_config = dict(warmup_iters=500, warmup_ratio=0.1, step=[16000])
 # runner = dict(max_iters=48000)
 runner = dict(max_iters=200000)
 evaluation = dict(interval=6000,
-                  class_splits=[['BASE_CLASSES_SPLIT4', 'NOVEL_CLASSES_SPLIT4']])
+                  class_splits=['BASE_CLASSES_SPLIT4', 'NOVEL_CLASSES_SPLIT4'])
 checkpoint_config = dict(interval=6000)
 
 model = dict(
@@ -37,5 +37,12 @@ model = dict(
     roi_head=dict(
         num_support_ways=num_support_ways,
         num_support_shots=num_support_shots,
+    ),
+    test_cfg=dict(
+        rpn=dict(
+            nms_pre=6000,
+            max_per_img=100,
+            nms=dict(type='nms', iou_threshold=0.5),
+            min_bbox_size=0),
     ),
 )

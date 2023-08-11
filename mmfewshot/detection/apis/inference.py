@@ -45,6 +45,7 @@ def init_detector(config: Union[str, mmcv.Config],
         config.merge_from_dict(cfg_options)
     config.model.pretrained = None
     config.model.train_cfg = None
+    # mmdet/models/builder.py
     model = build_detector(config.model, test_cfg=config.get('test_cfg'))
     if checkpoint is not None:
         map_loc = 'cpu' if device == 'cpu' else None
@@ -77,6 +78,11 @@ def process_support_images(model: nn.Module,
         classes (list[str] | None): Options to override classes name of model.
             Default: None.
     """
+    print("Entering process_support_images...")
+    print(f"  support_imgs = {support_imgs}")
+    print(f"  support_labels = {support_labels}")
+    print(f"  support_bboxes = {support_bboxes}")
+    print(f"  classes = {classes}")
     if isinstance(model, QuerySupportDetector):
         cfg = model.cfg
         # build pipeline
@@ -112,7 +118,7 @@ def process_support_images(model: nn.Module,
             # build the data pipeline
             data = support_pipeline(data)
             data_list.append(data)
-
+        # print(f"  data_list = {data_list}")
         data = collate(data_list, samples_per_gpu=len(support_imgs))
         # just get the actual data from DataContainer
         data['img_metas'] = [
@@ -149,6 +155,9 @@ def inference_detector(model: nn.Module, imgs: Union[List[str], str]) -> List:
         list: If imgs is a list or tuple, the same length list type results
             will be returned, otherwise return the detection results directly.
     """
+    print("Entering inference detector...")
+    print(f"  imgs = {imgs}")
+
     if isinstance(imgs, (list, tuple)):
         is_batch = True
     else:
@@ -167,7 +176,7 @@ def inference_detector(model: nn.Module, imgs: Union[List[str], str]) -> List:
         # build the data pipeline
         data = test_pipeline(data)
         data_list.append(data)
-
+    # print(f"  data_list = {data_list}")
     data = collate(data_list, samples_per_gpu=1)
     # just get the actual data from DataContainer
     data['img_metas'] = [img_metas.data[0] for img_metas in data['img_metas']]

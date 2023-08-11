@@ -35,18 +35,18 @@ def single_gpu_test(model: nn.Module,
     Returns:
         list: The prediction results.
     """
-    print("Entering single_gpu_test...")
+    # print("Entering single_gpu_test...")
     model.eval()
     results = []
     dataset = data_loader.dataset
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
-        print(f"\nImage {i}:")
+        # print(f"\nImage {i}:")
         with torch.no_grad():
             # forward in `test` mode
             # mmdet/models/detectors/base.py
             result = model(mode='test', rescale=True, **data)
-            print(f"  Image {i} processed, type(result) = {type(result)}")
+            # print(f"  Image {i} processed, type(result) = {type(result)}")
 
         batch_size = len(result)
         if show or out_dir:

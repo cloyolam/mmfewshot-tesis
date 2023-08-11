@@ -116,7 +116,11 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
                 - `res4_roi_feat` (Tensor): roi features of res4 layer.
                 - `res5_roi_feat` (Tensor): roi features of res5 layer.
         """
-        # print("\nEntering forward_model_init in AttentionRPNWoRoiHeadDetector...")
+        print("\nEntering forward_model_init in AttentionRPNWoRoiHeadDetector...")
+        print(f"  gt_bboxes = {gt_bboxes}")
+        print(f"  gt_labels = {gt_labels}")
+        print(f"  img.size() = {img.size()}")
+
         self.is_model_init = False
         # extract support template features will reset `is_model_init` flag
         assert gt_bboxes is not None and gt_labels is not None, \
@@ -125,19 +129,20 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
             'Support instance have more than two labels'
 
         feats = self.extract_support_feat(img)
-        # print(f"  len(feats) = {len(feats)}")
-        # for ix, tensor in enumerate(feats):
-        #     print(f"    {ix}: {tensor.size()}")
+        print(f"  len(feats) = {len(feats)}")
+        for ix, tensor in enumerate(feats):
+            print(f"    {ix}: {tensor.size()}")
         rois = bbox2roi([bboxes for bboxes in gt_bboxes])
-        # print(f"  rois.size() = {rois.size()}")
+        print(f"  rois.size() = {rois.size()}")
         res4_roi_feat = self.rpn_head.extract_roi_feat(feats, rois)
-        # print(f"  res4_roi_feat.size() = {res4_roi_feat.size()}")
+        print(f"  res4_roi_feat.size() = {res4_roi_feat.size()}")
         # res5_roi_feat = self.roi_head.extract_roi_feat(feats, rois)
         self._forward_saved_support_dict['gt_labels'].extend(gt_labels)
         self._forward_saved_support_dict['res4_roi_feats'].append(
             res4_roi_feat)
-        # print(f"  len(self._forward_saved_support_dict['gt_labels']) = {len(self._forward_saved_support_dict['gt_labels'])}")
-        # print(f"  len(self._forward_saved_support_dict['res4_roi_feats']) = {len(self._forward_saved_support_dict['res4_roi_feats'])}")
+        print(f"  len(self._forward_saved_support_dict['gt_labels']) = {len(self._forward_saved_support_dict['gt_labels'])}")
+        print(f"  self._forward_saved_support_dict['gt_labels'] = {self._forward_saved_support_dict['gt_labels']}")
+        print(f"  len(self._forward_saved_support_dict['res4_roi_feats']) = {len(self._forward_saved_support_dict['res4_roi_feats'])}")
         # self._forward_saved_support_dict['res5_roi_feats'].append(
         #     res5_roi_feat)
 
@@ -186,7 +191,7 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
                     proposals: Optional[List[Tensor]] = None,
                     rescale: bool = False) -> List[List[np.ndarray]]:
         """The same as simple_test in AttentionRPNDetector, but without the ROI head"""
-        print("Entering simple_test in AttentionRPNWoROIDetector...")
+        # print("Entering simple_test in AttentionRPNWoROIDetector...")
         # assert self.with_bbox, 'Bbox head must be implemented.'
         assert len(img_metas) == 1, 'Only support single image inference.'
         if (self.inference_support_dict == {}) or (not self.is_model_init):
@@ -196,21 +201,21 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
         results_dict = {}
         query_feats = self.extract_feat(img)
         for class_id in self.inference_support_dict.keys():
-            print(f"class_id = {class_id}")
+            # print(f"class_id = {class_id}")
             support_res4_roi_feat = \
                 self.inference_support_dict[class_id]['res4_roi_feats']
             # support_res5_roi_feat = \
             #     self.inference_support_dict[class_id]['res5_roi_feats']
             if proposals is None:
                 proposal_list = self.rpn_head.simple_test(
-                    query_feats, support_res4_roi_feat, img_metas)
+                    query_feats, support_res4_roi_feat, img_metas, rescale=True)
             else:
                 proposal_list = proposals
 
-            print("After RPN head:")
-            print(f"  len(proposal_list) = {len(proposal_list)}")
-            print(f"  proposal_list[0].size() = {proposal_list[0].size()}")
-            print(f"  {proposal_list}")
+            # print("After RPN head:")
+            # print(f"  len(proposal_list) = {len(proposal_list)}")
+            # print(f"  proposal_list[0].size() = {proposal_list[0].size()}")
+            # print(f"  {proposal_list}")
 
             results_dict[class_id] = proposal_list[0].detach().cpu().numpy()
 
@@ -226,12 +231,13 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
             results_dict[i] for i in sorted(results_dict.keys())
             if len(results_dict[i])
         ]
-
+        '''
         print("After ROI head:")
         print(f"  len(results) = {len(results)}")
         for ix, elem in enumerate(results):
             print(f"  {ix} = {elem.shape}")
         print(f"  {[results]}")
+        '''
         return [results]
 
 

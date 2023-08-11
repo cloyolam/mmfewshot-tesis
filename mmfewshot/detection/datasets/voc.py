@@ -460,6 +460,13 @@ class FewShotVOCDataset(BaseFewShotDataset):
         # evaluation or testing keep consistent with original xml
         # annotation file and the xmin and ymin of prediction results
         # will add 1 for inverse of data loading logic.
+        print("Entering evaluate in FewShotVOCDataset...")
+        print(f"  metric = {metric}")
+        print(f"  type(results) = {type(results)}")
+        # print(f"  results = {results}")
+        for ix, elem in enumerate(results[:10]):
+            print(f"    {ix}: type(elem) = {type(elem)}, len(elem) = {len(elem)}")
+        print(f"  results[0][0] = {results[0]}")
         for i in range(len(results)):
             for j in range(len(results[i])):
                 for k in range(4):
@@ -519,6 +526,7 @@ class FewShotVOCDataset(BaseFewShotDataset):
                     print_log(f'{k} mAP: {mAP}', logger=logger)
         elif metric == 'recall':
             gt_bboxes = [ann['bboxes'] for ann in annotations]
+            # mmdet/core/evaluation/recall.py
             recalls = eval_recalls(
                 gt_bboxes, results, proposal_nums, iou_thr, logger=logger)
             for i, num in enumerate(proposal_nums):

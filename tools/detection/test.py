@@ -143,7 +143,8 @@ def main():
         init_dist(args.launcher, **cfg.dist_params)
 
     # build the dataloader
-    dataset = build_dataset(cfg.data.test)
+    dataset = build_dataset(cfg.data.test)  # FewShotVOCDataset
+    print(f"type(dataset) = {type(dataset)}")
 
     test_dataloader_default_args = dict(
         samples_per_gpu=1, workers_per_gpu=2, dist=distributed, shuffle=False)
@@ -245,6 +246,7 @@ def main():
             ]:
                 eval_kwargs.pop(key, None)
             eval_kwargs.update(dict(metric=args.eval, **kwargs))
+            # FewShotVOCDataset, mmfewshot/detection/datasets/voc.py, l. 428
             print(dataset.evaluate(outputs, **eval_kwargs))
 
 
