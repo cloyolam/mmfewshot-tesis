@@ -388,9 +388,11 @@ class TransformerNeckRPNHead(RPNHead):
             num_total_samples=num_total_samples)
         return dict(loss_rpn_cls=losses_cls, loss_rpn_bbox=losses_bbox)
 
+    # TODO: delete support_feat, not needed beacause query_feats already has
+    # support info.
     def simple_test(self,
                     query_feats: List[Tensor],
-                    support_feat: Tensor,
+                    # support_feat: Tensor,
                     query_img_metas: List[Dict],
                     rescale: bool = False) -> List[Tensor]:
         """Test function without test time augmentation.
@@ -411,10 +413,8 @@ class TransformerNeckRPNHead(RPNHead):
             List[Tensor]: Proposals of each image, each item has shape (n, 5),
                 where 5 represent (tl_x, tl_y, br_x, br_y, score).
         """
-        # fuse support and query features
-        feats = self.aggregation_layer(
-            query_feat=query_feats[0], support_feat=support_feat)
-        proposal_list = self.simple_test_rpn(feats, query_img_metas)
+        # mmdet/models/dense_heads/dense_test_mixins.py
+        proposal_list = self.simple_test_rpn(query_feats, query_img_metas)
         if rescale:
             for proposals, meta in zip(proposal_list, query_img_metas):
                 proposals[:, :4] /= proposals.new_tensor(meta['scale_factor'])

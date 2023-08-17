@@ -143,23 +143,32 @@ class TransformerRPNWoRoiHeadDetector(QuerySupportDetector):
         }
 
     def model_init(self) -> None:
+        # print("Entering model_init in TransformerRPNWoRoiHeadDetector...")
         """process the saved support features for model initialization."""
         self.inference_support_dict.clear()
         gt_labels = torch.cat(self._forward_saved_support_dict['gt_labels'])
+        # print(f"  gt_labels.size() = {gt_labels.size()}")
         # used for attention rpn head
         res4_roi_feats = torch.cat(
             self._forward_saved_support_dict['res4_roi_feats'])
+        # print(f"  res4_roi_feats.size() = {res4_roi_feats.size()}")
         # used for multi relation head
         # res5_roi_feats = torch.cat(
         #     self._forward_saved_support_dict['res5_roi_feats'])
         class_ids = set(gt_labels.data.tolist())
+        # print(f"  class_ids = {class_ids}")
         for class_id in class_ids:
+            # print(f"  class_id: {class_id}")
+            # print(f"    before_averaging: {res4_roi_feats[gt_labels == class_id].size()}")
+            # don't apply GAP when using CAT block
+            # res4_roi_feats -> [1, C, roi_height, roi_width] -> [1, 1024, 14, 14]
             self.inference_support_dict[class_id] = {
                 'res4_roi_feats':
-                res4_roi_feats[gt_labels == class_id].mean([0, 2, 3], True),
+                res4_roi_feats[gt_labels == class_id].mean([0], True),
                 # 'res5_roi_feats':
                 # res5_roi_feats[gt_labels == class_id].mean([0], True)
             }
+            # print(f"    after averaging: {self.inference_support_dict[class_id]['res4_roi_feats'].size()}")
         # set the init flag
         self.is_model_init = True
         # clear support dict
@@ -190,6 +199,7 @@ class TransformerRPNWoRoiHeadDetector(QuerySupportDetector):
                 The outer list corresponds to each image. The inner list
                 corresponds to each class.
         """
+        # print("Entering simple_test in TransformerRPNWoROIDetector...")
         # assert self.with_bbox, 'Bbox head must be implemented.'
         assert len(img_metas) == 1, 'Only support single image inference.'
         if (self.inference_support_dict == {}) or (not self.is_model_init):
@@ -198,16 +208,36 @@ class TransformerRPNWoRoiHeadDetector(QuerySupportDetector):
 
         results_dict = {}
         query_feats = self.extract_feat(img)
+        # print(f"  len(query_feats) = {len(query_feats)}")
+        # print(f"  query_feats[0].size() = {query_feats[0].size()}")
         for class_id in self.inference_support_dict.keys():
             support_res4_roi_feat = \
                 self.inference_support_dict[class_id]['res4_roi_feats']
             # support_res5_roi_feat = \
             #     self.inference_support_dict[class_id]['res5_roi_feats']
+            # print(f"  support_res4_roi_feat.size() = {support_res4_roi_feat.size()}")
+
+            # Apply CAT between query and support features
+            if self.neck is not None:
+                # print("Applying CAT between query and support features...")
+                query_feats = query_feats[0]
+                # print("Shapes before CAT neck:")
+                # print(f"  query_feats.size() = {query_feats.size()}")
+                # print(f"  support_res4_roi_feat.size() = {support_res4_roi_feat.size()}")
+                query_feats, _ = self.neck(query_feats, support_res4_roi_feat)
+                query_feats = [query_feats]
+            # print("After CAT neck:")
+            # print(f"  len(query_feats) = {len(query_feats)}")
+            # print(f"  query_feats[0].size() = {query_feats[0].size()}")
+
             if proposals is None:
-                proposal_list = self.rpn_head.simple_test(
-                    query_feats, support_res4_roi_feat, img_metas)
+                proposal_list = self.rpn_head.simple_test(query_feats,
+                                                          img_metas,
+                                                          rescale=True)
             else:
                 proposal_list = proposals
+            results_dict[class_id] = proposal_list[0].detach().cpu().numpy()
+
         '''
             results_dict[class_id] = self.roi_head.simple_test(
                 query_feats,
@@ -215,13 +245,12 @@ class TransformerRPNWoRoiHeadDetector(QuerySupportDetector):
                 proposal_list,
                 img_metas,
                 rescale=rescale)
+        '''
         results = [
-            results_dict[i][0][0] for i in sorted(results_dict.keys())
+            results_dict[i] for i in sorted(results_dict.keys())
             if len(results_dict[i])
         ]
         return [results]
-        '''
-        return [proposal_list]
 
     # Override QuerySupportDetector methods
 
@@ -301,7 +330,6 @@ class TransformerRPNWoRoiHeadDetector(QuerySupportDetector):
 
         assert len(query_feats) == len(support_feats) == 1, \
             'len(query_feats) or len(support_feats) is different from 1'
-
 
         # Apply block of Cross Attention Transformer
         if self.neck is not None:

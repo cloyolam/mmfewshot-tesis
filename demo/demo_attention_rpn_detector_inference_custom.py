@@ -2,10 +2,10 @@
 """Inference Attention RPN Detector with support instances.
 
 Example:
-    python demo/demo_attention_rpn_detector_inference.py \
-        ./demo/demo_detection_images/query_images/demo_query.jpg
-        configs/detection/attention_rpn/coco/attention-rpn_r50_c4_4xb2_coco_base-training.py
-        ./work_dirs/attention-rpn_r50_c4_4xb2_coco-base-training/latest.pth
+    python demo/demo_attention_rpn_detector_inference_custom.py \
+        ../ejemplos_query_support/voc_split_4/ \
+        configs/detection/transformer-neck_rpn_wo-roi-head/voc/split4/transformer-neck-rpn-wo-roi-head_r50_c4_2x5_voc-split4_test.py \
+        work_dirs/transformer-neck-rpn-wo-roi-head_r50_c4_2x5_voc-split4_base-training/latest.pth
 """  # nowq
 
 import os
@@ -42,15 +42,17 @@ def main(args):
                              'chair', 'diningtable', 'dog', 'horse', 'motorbike',
                              'person', 'pottedplant', 'sofa', 'train', 'tvmonitor'],
                     'unseen': ['aeroplane', 'cat', 'cow', 'sheep']}
+    score_thr_dict = {'seen': 0.2, 'unseen': 0.2}
     # build the model from a config file and a checkpoint file
     print("Calling init_detector...")
     # mmfewshot/detection/apis/inference.py
     model = init_detector(args.config, args.checkpoint, device=args.device)
     print("Model initialized!")
 
-    # for class_type in classes_dict:
-    for class_type in ['unseen']:
+    for class_type in classes_dict:
+    # for class_type in ['unseen']:
         print(f"class_type = {class_type}:")
+        score_thr = score_thr_dict[class_type]
         for class_name in classes_dict[class_type]:
             print(f"  class_name = {class_name}")
             # prepare support images, each demo image only contain one instance
@@ -77,16 +79,19 @@ def main(args):
             # It calls to foward_test in BaseDetector, which calls to simple_test in AttentionRPNDetector
             print("Calling inference_detector...")
             result = inference_detector(model, image_fn)
-            print(f"Before thr filter: {result[0].shape}")
-            print(f"  {result[0][:10]}")
+            print(f"  result[0].shape = {result[0].shape}")
+            print(f"  after score filter with thr={score_thr}:")
+            print(f"  result[0].shape = {result[0][result[0][:, 4] > score_thr].shape}")
+            # print(f"Before thr filter: {result[0].shape}")
+            # print(f"  {result[0][:10]}")
             # Filter by confidence threshold
             # result = result[0]
             # result = [result[result[:, 4] > 0.9]]
-            print(f"After thr filter: {result[0].shape}")
+            # print(f"After thr filter: {result[0].shape}")
             print("Inference done!")
             # show the results
-            output_fn = os.path.join(class_dir, "result_full.png")
-            show_result_pyplot(model, image_fn, result, score_thr=args.score_thr, out_file=output_fn)
+            output_fn = os.path.join(class_dir, "result_transformer.png")
+            show_result_pyplot(model, image_fn, result, score_thr=score_thr, out_file=output_fn)
 
 if __name__ == '__main__':
     args = parse_args()

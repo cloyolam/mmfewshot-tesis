@@ -57,13 +57,13 @@ def main(args):
     # It calls to foward_test in BaseDetector, which calls to simple_test in AttentionRPNDetector
     print("Calling inference_detector...")
     result = inference_detector(model, args.image)
-    print(f"Before thr filter: {result[0].shape}")
-    print(f"  {result[0][:10]}")
+    # print(f"Before thr filter: {result[0].shape}")
+    # print(f"  {result[0][:10]}")
     # Filter by confidence threshold
-    result = result[0]
-    result = [result[result[:, 4] > 0.9]]
-    print(f"After thr filter: {result[0].shape}")
-    print("Inference done!")
+    # result = result[0]
+    # result = [result[result[:, 4] > 0.9]]
+    # print(f"After thr filter: {result[0].shape}")
+    # print("Inference done!")
     # show the results
     show_result_pyplot(model, args.image, result, score_thr=args.score_thr)
 

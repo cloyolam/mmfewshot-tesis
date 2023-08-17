@@ -170,7 +170,6 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
         for class_id in class_ids:
             print(f"  class_id: {class_id}")
             print(f"    before_averaging: {res4_roi_feats[gt_labels == class_id].size()}")
-            # TODO: don't average supports for each class
             self.inference_support_dict[class_id] = {
                 'res4_roi_feats':
                 res4_roi_feats[gt_labels == class_id].mean([0, 2, 3], True),
