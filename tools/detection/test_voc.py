@@ -145,10 +145,8 @@ def main(args):
     classes = [file.split('.')[0] for file in files]
     support_labels = [[file.split('.')[0]] for file in files]
     '''
-    # generate a dictionary with support filenames for each class
-    support_fn_dict = generate_voc_support_dict(SUPPORT_BASE_DIR,
-                                                VOC_CLASSES_LIST)
     # get all test images with its gt info and sample supports for each class
+    print("Generating query / support pairs dictionary...")
     test_fn = os.path.join(IMAGES_SETS_DIR, "test.txt")
     with open(test_fn) as f:
         imgs_ids = sorted(f.readlines())
@@ -156,33 +154,35 @@ def main(args):
     imgs_dict = generate_query_support_pairs(imgs_ids, SUPPORT_BASE_DIR,
                                              VOC_CLASSES_LIST, n_supports=5,
                                              use_difficult=False)
-    print(f"Before filtering: {len(imgs_ids)}")
-    print(f"After filtering: {len(imgs_dict)}")
-    for k, v in list(imgs_dict.items())[:5]:
-        print(f"{k}:")
-        print(f"  {v}")
+    # make inference with all the images and supports from imgs_dict
+    for img_id, img_info in [list(imgs_dict.items())[0]]:
+        img_fn = os.path.join(IMAGES_DIR, img_id + ".jpg")
+        print(f"img_id = {img_id}")
+        for class_name, supports in img_info['sampled_supports'].items():
+            print(f"  class_name = {class_name}")
+            for support_fn in supports:
+                support_images = [os.path.join(SUPPORT_BASE_DIR, class_name, support_fn)]
+                support_labels = [[class_name]]
+                classes = [class_name]
+                print(f"    Processing {support_fn}...")
+                process_support_images(model, support_images, support_labels,
+                                       classes=classes)
+                # mmfewshot/detection/apis/inference.py
+                # It calls to foward_test in BaseDetector, which calls to simple_test in AttentionRPNDetector
+                print("    Calling inference_detector...")
+                result = inference_detector(model, img_fn)
 
-    '''
-    print("Processing support images...")
-    # mmfewshot/detection/apis/inference.py
-    process_support_images(
-        model, support_images, support_labels, classes=classes)
-    print("Support images processed!")
-    # test a single image
-    # mmfewshot/detection/apis/inference.py
-    # It calls to foward_test in BaseDetector, which calls to simple_test in AttentionRPNDetector
-    print("Calling inference_detector...")
-    result = inference_detector(model, args.image)
-    # print(f"Before thr filter: {result[0].shape}")
-    # print(f"  {result[0][:10]}")
-    # Filter by confidence threshold
-    # result = result[0]
-    # result = [result[result[:, 4] > 0.9]]
-    # print(f"After thr filter: {result[0].shape}")
-    # print("Inference done!")
-    # show the results
-    show_result_pyplot(model, args.image, result, score_thr=args.score_thr)
-    '''
+                print(f"    Before thr filter: {result[0].shape}")
+                print(f"    {result[0][:10]}")
+                # Filter by confidence threshold
+                # result = result[0]
+                # result = [result[result[:, 4] > 0.9]]
+                # print(f"After thr filter: {result[0].shape}")
+                print("    Inference done!")
+                # show the results
+                output_fn = f"{img_id}_{support_fn}"
+                output_fn = os.path.join(SUPPORT_BASE_DIR, output_fn)
+                show_result_pyplot(model, img_fn, result, score_thr=args.score_thr, out_file=output_fn)
 
 if __name__ == '__main__':
     args = parse_args()

@@ -78,11 +78,11 @@ def process_support_images(model: nn.Module,
         classes (list[str] | None): Options to override classes name of model.
             Default: None.
     """
-    print("Entering process_support_images...")
-    print(f"  support_imgs = {support_imgs}")
-    print(f"  support_labels = {support_labels}")
-    print(f"  support_bboxes = {support_bboxes}")
-    print(f"  classes = {classes}")
+    # print("Entering process_support_images...")
+    # print(f"  support_imgs = {support_imgs}")
+    # print(f"  support_labels = {support_labels}")
+    # print(f"  support_bboxes = {support_bboxes}")
+    # print(f"  classes = {classes}")
     if isinstance(model, QuerySupportDetector):
         cfg = model.cfg
         # build pipeline

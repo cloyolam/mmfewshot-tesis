@@ -116,10 +116,13 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
                 - `res4_roi_feat` (Tensor): roi features of res4 layer.
                 - `res5_roi_feat` (Tensor): roi features of res5 layer.
         """
+
+        '''
         print("\nEntering forward_model_init in AttentionRPNWoRoiHeadDetector...")
         print(f"  gt_bboxes = {gt_bboxes}")
         print(f"  gt_labels = {gt_labels}")
         print(f"  img.size() = {img.size()}")
+        '''
 
         self.is_model_init = False
         # extract support template features will reset `is_model_init` flag
@@ -129,20 +132,24 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
             'Support instance have more than two labels'
 
         feats = self.extract_support_feat(img)
+        '''
         print(f"  len(feats) = {len(feats)}")
         for ix, tensor in enumerate(feats):
             print(f"    {ix}: {tensor.size()}")
+        '''
         rois = bbox2roi([bboxes for bboxes in gt_bboxes])
-        print(f"  rois.size() = {rois.size()}")
+        # print(f"  rois.size() = {rois.size()}")
         res4_roi_feat = self.rpn_head.extract_roi_feat(feats, rois)
-        print(f"  res4_roi_feat.size() = {res4_roi_feat.size()}")
+        # print(f"  res4_roi_feat.size() = {res4_roi_feat.size()}")
         # res5_roi_feat = self.roi_head.extract_roi_feat(feats, rois)
         self._forward_saved_support_dict['gt_labels'].extend(gt_labels)
         self._forward_saved_support_dict['res4_roi_feats'].append(
             res4_roi_feat)
+        '''
         print(f"  len(self._forward_saved_support_dict['gt_labels']) = {len(self._forward_saved_support_dict['gt_labels'])}")
         print(f"  self._forward_saved_support_dict['gt_labels'] = {self._forward_saved_support_dict['gt_labels']}")
         print(f"  len(self._forward_saved_support_dict['res4_roi_feats']) = {len(self._forward_saved_support_dict['res4_roi_feats'])}")
+        '''
         # self._forward_saved_support_dict['res5_roi_feats'].append(
         #     res5_roi_feat)
 
@@ -154,29 +161,29 @@ class AttentionRPNWoRoiHeadDetector(QuerySupportDetector):
 
     def model_init(self) -> None:
         """process the saved support features for model initialization."""
-        print("Entering model_init in AttentionRPNWoRoiHeadDetector...")
+        # print("Entering model_init in AttentionRPNWoRoiHeadDetector...")
         self.inference_support_dict.clear()
         gt_labels = torch.cat(self._forward_saved_support_dict['gt_labels'])
-        print(f"  gt_labels.size() = {gt_labels.size()}")
+        # print(f"  gt_labels.size() = {gt_labels.size()}")
         # used for attention rpn head
         res4_roi_feats = torch.cat(
             self._forward_saved_support_dict['res4_roi_feats'])
-        print(f"  res4_roi_feats.size() = {res4_roi_feats.size()}")
+        # print(f"  res4_roi_feats.size() = {res4_roi_feats.size()}")
         # used for multi relation head
         # res5_roi_feats = torch.cat(
         #     self._forward_saved_support_dict['res5_roi_feats'])
         class_ids = set(gt_labels.data.tolist())
-        print(f"  class_ids = {class_ids}")
+        # print(f"  class_ids = {class_ids}")
         for class_id in class_ids:
-            print(f"  class_id: {class_id}")
-            print(f"    before_averaging: {res4_roi_feats[gt_labels == class_id].size()}")
+            # print(f"  class_id: {class_id}")
+            # print(f"    before_averaging: {res4_roi_feats[gt_labels == class_id].size()}")
             self.inference_support_dict[class_id] = {
                 'res4_roi_feats':
                 res4_roi_feats[gt_labels == class_id].mean([0, 2, 3], True),
                 # 'res5_roi_feats':
                 # res5_roi_feats[gt_labels == class_id].mean([0], True)
             }
-            print(f"    after averaging: {self.inference_support_dict[class_id]['res4_roi_feats'].size()}")
+            # print(f"    after averaging: {self.inference_support_dict[class_id]['res4_roi_feats'].size()}")
         # set the init flag
         self.is_model_init = True
         # clear support dict
